@@ -1,4 +1,4 @@
--- Service Inviter v3.9.3
+-- Service Inviter v3.9.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1690,6 +1690,7 @@ f:RegisterEvent("CHAT_MSG_SAY")
 f:RegisterEvent("CHAT_MSG_WHISPER")
 f:RegisterEvent("CHAT_MSG_YELL")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
+f:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE_USER")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -1854,7 +1855,9 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         if Jobs.TeamOn() then Report("team", pcall(Jobs.SayHi, true)) end
         return
     end
+    if event == "CHAT_MSG_CHANNEL_NOTICE_USER" then Jobs.AdNotice(tostring(text)) return end
     if event == "CHAT_MSG_SYSTEM" then
+        Jobs.AdNotice(text)
         if debugOn and text then
             local l = text:lower()
             if l:find("invit") or l:find("group") or l:find("party") or l:find("raid") then D("game says: " .. text) end
@@ -1867,6 +1870,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
     Jobs.market = (event == "CHAT_MSG_CHANNEL" and Jobs.MarketOf(channelName)) or (event == "CHAT_MSG_SAY" and "Say") or
         (event == "CHAT_MSG_YELL" and "Yell") or nil
     if event == "CHAT_MSG_CHANNEL" then
+        Report("ad", pcall(Jobs.AdSeen, text, sender))
         local ch = (channelBaseName and channelBaseName ~= "") and channelBaseName or channelName
         if not ChannelAllowed(ch) then return end
     elseif event == "CHAT_MSG_SAY" then
@@ -1939,7 +1943,9 @@ function Jobs.WatchedChannels()
 end
 local function AdChannels()
     local out = {}
-    for _, c in ipairs(Jobs.WatchedChannels()) do if not Jobs.AdSkipped(c.name) then out[#out + 1] = c end end
+    for _, c in ipairs(Jobs.WatchedChannels()) do
+        if not Jobs.AdSkipped(c.name) and (Jobs.adFails[c.name] or 0) < 2 then out[#out + 1] = c end
+    end
     return out
 end
 -- The ad queue, in the order presses will post: ready channels first (in channel order), then
@@ -1962,13 +1968,19 @@ function Jobs.AdQueue()
 end
 function Jobs.AdQueueText()
     local q = Jobs.AdQueue()
-    if #q == 0 then return "No channel to post in." end
     local lines = {}
+    for nm, n in pairs(Jobs.adFails) do
+        if n >= 2 then lines[#lines + 1] = Jobs.ShortChannel(nm) .. "  |cffff8040didn't post twice: left out|r" end
+    end
+    if #q == 0 then return #lines > 0 and table.concat(lines, "\n") or "No channel to post in." end
+    local tail = lines
+    lines = {}
     for n, e in ipairs(q) do
         -- (colors by hand: INK is defined further down the file)
         lines[#lines + 1] = (n == 1 and e.left == 0 and "|cffe9b949next|r  " or "") .. Jobs.ShortChannel(e.name) .. "  " ..
             (e.left == 0 and "|cffe9b949ready|r" or ("|cff9ba3ae" .. ("%d:%02d"):format(math.floor(e.left / 60), math.floor(e.left % 60)) .. "|r"))
     end
+    for _, l in ipairs(tail) do lines[#lines + 1] = l end
     return table.concat(lines, "\n")
 end
 -- "Trade - English 50" -> "Trade 50", for the ad button
@@ -2020,7 +2032,41 @@ local function PostAd()
     lastAdIn[key] = now
     lastAdAt = now
     Stats().ads = (Stats().ads or 0) + 1
-    D("ad posted in " .. tostring(name))
+    -- the ad counts once it shows up in the channel (Jobs.AdSeen); a few seconds without it and
+    -- the press didn't post (Jobs.AdCheck)
+    Jobs.adPending = { key = key, name = name, text = text, t = now }
+    D("ad sent to " .. tostring(name) .. ", waiting to see it in the channel")
+    if RefreshJobs then RefreshJobs() end
+end
+-- Did the ad you just posted appear? (the owner, 15 Nov 2026: "i have to press post in trade like
+-- 3 times then it works and for summons it just doesnt work at all"). Your own line in the channel
+-- confirms it. Nothing in 4 seconds: the game didn't post it there (muted, not allowed in that
+-- channel, or a channel that's switched off): say so, and don't make that channel wait. Twice in
+-- the same channel and it leaves the queue until you log in again.
+Jobs.adFails = {}
+function Jobs.AdSeen(text, sender)
+    local p = Jobs.adPending
+    if not p or type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" or IsSecret(sender) then return end
+    local who = Ambiguate and Ambiguate(sender, "none") or sender
+    if who ~= FullName("player") or text ~= p.text then return end
+    Jobs.adPending = nil
+    Jobs.adFails[p.key] = nil
+    D("ad seen in " .. tostring(p.name))
+end
+function Jobs.AdNotice(text)
+    local p = Jobs.adPending
+    if p and type(text) == "string" and not IsSecret(text) and GetTime() - p.t < 4 then p.why = text end
+end
+function Jobs.AdCheck()
+    local p = Jobs.adPending
+    if not p or GetTime() - p.t < 4 then return end
+    Jobs.adPending = nil
+    lastAdIn[p.key] = nil
+    Jobs.adFails[p.key] = (Jobs.adFails[p.key] or 0) + 1
+    local gone = Jobs.adFails[p.key] >= 2
+    P("|cffff8040Your ad didn't show up in " .. Jobs.ShortChannel(p.name) .. ".|r " ..
+        (p.why and ("The game said: " .. p.why .. ". ") or "The game didn't post it there (muted, or not allowed in that channel?). ") ..
+        (gone and "Left out of the queue until you log in again." or "Press again to try once more."))
     if RefreshJobs then RefreshJobs() end
 end
 -- the channel the next ad goes to, as the game names it (for the setup's preview line)
@@ -4117,6 +4163,7 @@ ticker:SetScript("OnUpdate", function(_, el)
         tacc = 0
         if not ServiceInviterDB.stasis then
             Report("arrivals", pcall(CheckArrivals))
+            Report("ad", pcall(Jobs.AdCheck))
             if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
             if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 60 then Report("team", pcall(Jobs.SayHi, false)) end
             Report("team books", pcall(Jobs.BookTick))

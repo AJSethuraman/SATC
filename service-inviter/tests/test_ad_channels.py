@@ -60,3 +60,36 @@ def test_a_channel_the_game_has_switched_off_is_skipped():
     g.run('ServiceInviterDB.role = "lock"')
     g.run("ServiceInviter_Test.PostAd()")
     assert posted(g) == [4]                    # the first press posts, in a channel that works
+
+
+def echo(g):
+    """The game shows your own ad back to you in the channel."""
+    last = [m for ch, to, m in g.sent() if ch == "CHANNEL"][-1]
+    g.event("CHAT_MSG_CHANNEL", last, "Me", "", "5. summons", "", "", "", "", "summons")
+
+
+def test_an_ad_that_never_shows_up_is_reported_and_the_channel_tried_again():
+    """The owner, 15 Nov 2026: "i have to press post in trade like 3 times then it works and for
+    summons it just doesnt work at all"."""
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 5, "summons", false end')
+    g.run('ServiceInviterDB.role = "lock"')
+    g.run("ServiceInviter_Test.PostAd()")
+    g.event("CHAT_MSG_CHANNEL_NOTICE_USER", "You are not allowed to speak in this channel")
+    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    said = " ".join(g.printed())
+    assert "Your ad didn't show up in summons." in said and "not allowed to speak" in said
+    assert g.eval("(ServiceInviter_Test.AdState())") == "ready"            # no wait started
+    g.run("ServiceInviter_Test.PostAd() CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    assert "Left out of the queue" in " ".join(g.printed())
+    assert g.eval("(ServiceInviter_Test.AdState())") == "off"
+    assert "didn't post twice" in g.eval("ServiceInviter_Test.Jobs.AdQueueText()")
+
+
+def test_an_ad_that_shows_up_is_fine():
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 5, "summons", false end')
+    g.run('ServiceInviterDB.role = "lock"')
+    g.run("ServiceInviter_Test.PostAd()")
+    echo(g)
+    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    assert "didn't show up" not in " ".join(g.printed())
+    assert g.eval("(ServiceInviter_Test.AdState())") == "wait"
