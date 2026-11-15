@@ -102,14 +102,14 @@ def test_each_customer_is_told_their_own_warlock():
 def test_the_ad_lists_both_places():
     g = world(TWO_LOCKS)
     g.run("ServiceInviter_Test.PostAd()")
-    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB/UC 25 silver | whisper inv"]
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB/UC 25 silver || whisper inv"]   # the bar doubled, as typed chat does
 
 
 def test_two_warlocks_in_one_place_are_one_offer():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
                "party2": ("Ashfel", "WARLOCK", 60, "Thunder Bluff")})
     g.run("ServiceInviter_Test.PostAd()")
-    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB 25 silver | whisper inv"]
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB 25 silver || whisper inv"]
 
 
 def test_no_warlock_no_summon_invites():
@@ -159,7 +159,7 @@ def test_posting_the_ad_and_an_inv_whisper_answering_it():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
     g.run("ServiceInviter_Test.PostAd()")
     chan = [(ch, to, m) for ch, to, m in g.sent() if ch == "CHANNEL"]
-    assert chan == [("CHANNEL", 2, "WTS summons to TB 25 silver | whisper inv")]
+    assert chan == [("CHANNEL", 2, "WTS summons to TB 25 silver || whisper inv")]
     whisper(g, "Mirasha", "inv")
     assert invited(g) == ["Mirasha"]
     assert "answered your ad" in job(g, "Mirasha", "why")

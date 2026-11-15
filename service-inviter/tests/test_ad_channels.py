@@ -267,7 +267,7 @@ def test_the_guild_try_counts_when_the_game_sends_the_bar_back_doubled():
     g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
     g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true, adguild = true }')
     m = press(g)
-    assert "| whisper inv" in m
+    assert "|| whisper inv" in m                          # doubled: a lone bar is a broken code
     g.event("CHAT_MSG_SYSTEM", "Trukt Hunt has joined the raid group.")
     g.event("CHAT_MSG_GUILD", m[3:].replace("|", "||"), "Me-Forever")
     g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
@@ -296,3 +296,22 @@ def test_with_the_si_ad_macro_the_button_runs_it():
     assert g.eval('ServiceInviterAdButton:GetAttribute("macro")') == 1
     assert g.eval('ServiceInviterAdButton:GetAttribute("macrotext")') is None
     assert g.eval("MACRO_LIST[1].body").startswith("/1 ")
+
+
+def test_every_bar_we_send_is_doubled_or_the_game_drops_the_line():
+    """The owner, 15 Nov 2026: "ok the macro is straight up not working, it will not go into guild
+    chat no matter how many times i press it ... it's just typing in the game - something we already
+    do". Typed, the chat box doubles a "|"; a macro or addon sends a lone one, a broken code, and the
+    game drops the whole line without a word."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    body = g.eval("MACRO_LIST[1].body")
+    assert "|| whisper inv" in body and "| whisper" not in body.replace("||", "")
+    g.run("ServiceInviter_Test.PostAd()")
+    sent = [m for ch, _, m in g.sent() if ch == "CHANNEL"][-1]
+    assert sent.replace("||", "").count("|") == 0
+    assert g.eval('ServiceInviter_Test.Jobs.ChatSafe("a || b | c")') == "a || b || c"   # doubled ones stay
+    # whispers and party lines too
+    g.run('ServiceInviter_Test.Jobs.Send("hi | there", "WHISPER", "Kaldrok")')
+    assert g.sent()[-1][2] == "hi || there"

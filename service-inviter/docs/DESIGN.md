@@ -554,3 +554,14 @@ one, the buttons work as before.
 The owner: *"if someone types TB > UC or something they are saying from TB to UC so the final
 destination is UC"*. `>`, `->`, `=>` and `→` read as " to ", so the first "to <place>" rule picks the
 place after the arrow; the one before it is where they stand.
+
+## 3.9.22: the bar in the ad (15 Nov 2026)
+
+The owner: *"ok the macro is straight up not working, it will not go into guild chat no matter how
+many times i press it"* and *"i am just still so confused because it's just typing in the game -
+something we already do"*. The ad's default text is `{wts}{services} | whisper inv`. In WoW chat a
+`|` starts a color or link code; the chat box doubles one you type into `||`, a plain bar, but a
+macro or an addon sends exactly what it holds, and a lone `| ` is a broken code, so the game drops
+the whole line without a word. That is most likely why no ad ever posted from the addon: the
+button, `/si ad`, and the SI Ad macro. `Jobs.ChatSafe` doubles every bar in every line we send
+(ads, macro text, whispers, party and raid lines), leaving doubled ones alone.

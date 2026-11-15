@@ -1,4 +1,4 @@
--- Service Inviter v3.9.21
+-- Service Inviter v3.9.22
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -197,7 +197,17 @@ function Jobs.Route(kind, text, name, groupCh)
         if ch then Jobs.Send(text, ch) end
     end
 end
+-- A "|" in chat starts a color or link code. Typed, the chat box doubles it to "||" (a plain bar);
+-- sent by an addon or a macro, a lone "|" is a broken code and the game drops the whole line,
+-- silently. The ad's "| whisper inv" did exactly that, from the button, the macro and /si ad (the
+-- owner, 15 Nov 2026: "i am just still so confused because it's just typing in the game -
+-- something we already do"). Every line we send has its bars doubled; doubled ones stay as they are.
+function Jobs.ChatSafe(text)
+    if type(text) ~= "string" then return text end
+    return (text:gsub("||", "\1"):gsub("|", "||"):gsub("\1", "||"))
+end
 function Jobs.Send(text, ch, to)
+    text = Jobs.ChatSafe(text)
     -- on a team, only the point of contact talks to customers and the group (the owner, 14 Nov 2026:
     -- "i want there to be a point of contact")
     if ch ~= "CHANNEL" and Jobs.POC then
@@ -2146,7 +2156,7 @@ local function PostAd()
         P(state == "wait" and ("next ad in " .. math.ceil(key) .. "s") or ("no ad: " .. tostring(key)))
         return
     end
-    if key == "Guild" then SendChatMessage(text, "GUILD") else SendChatMessage(text, "CHANNEL", nil, id) end
+    if key == "Guild" then SendChatMessage(Jobs.ChatSafe(text), "GUILD") else SendChatMessage(Jobs.ChatSafe(text), "CHANNEL", nil, id) end
     Jobs.AdPosted(key, name, text)
 end
 -- After an ad goes out, by a typed /si ad or a button press.
@@ -2244,7 +2254,7 @@ end
 function Jobs.AdMacro()
     local state, key, id, name, text = AdState()
     if state ~= "ready" then return nil, state, key end
-    return "/" .. id .. " " .. text, key, id, name, text
+    return "/" .. id .. " " .. Jobs.ChatSafe(text), key, id, name, text
 end
 -- the half of the press the game runs the macro on
 function Jobs.AdHalf(down)
@@ -3151,7 +3161,7 @@ function Jobs.RehearseNow(name, said, why, svc, dest, channel, quote, target, ma
         if not text or text == "" then return end
         if to and to ~= "" then
             -- exactly what the customer would get, nothing added; your chat says what it was
-            SendChatMessage(text, "WHISPER", nil, to)
+            SendChatMessage(Jobs.ChatSafe(text), "WHISPER", nil, to)
             P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "): whispered to " .. to .. " instead|r")
         else
             P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "):|r " .. Jobs.Icons(text))
