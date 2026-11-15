@@ -1,4 +1,4 @@
--- Service Inviter v3.9.1
+-- Service Inviter v3.9.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3208,6 +3208,11 @@ function Jobs.SetupEntries()
     out[#out + 1] = { "t:members", enc(table.concat(Jobs.TeamMembers(), ", ")) }
     out[#out + 1] = { "t:poc", enc((type(db.team) == "table" and db.team or {}).poc) }
     out[#out + 1] = { "w:prov", enc((type(db.providers) == "table" and db.providers or {}).WARLOCK) }
+    -- the ad's switched-off channels, by name (3.9)
+    local skipped = {}
+    for nm, on in pairs(type(db.adskip) == "table" and db.adskip or {}) do if on then skipped[#skipped + 1] = nm end end
+    table.sort(skipped)
+    out[#out + 1] = { "a:skip", enc(type(db.adskip) == "table" and table.concat(skipped, ",") or nil) }
     return out
 end
 function Jobs.ShareSetup()
@@ -3285,6 +3290,11 @@ function Jobs.ApplySetup(values, who)
         elseif kind == "w" then
             db.providers = type(db.providers) == "table" and db.providers or {}
             db.providers.WARLOCK = v
+        elseif kind == "a" and key == "skip" then
+            if v == nil then db.adskip = nil else
+                db.adskip = {}
+                for nm in tostring(v):gmatch("[^,]+") do db.adskip[nm] = true end
+            end
         end
     end
     -- whoever sent it is on your team, guild or not

@@ -79,3 +79,16 @@ def test_the_sender_hears_what_happened():
     bone.run("ServiceInviterSetupAsk.use._scripts.OnClick()")
     pump(bone, me, "Bone Charms")
     assert any("Bone Charms is using your setup" in p for p in me.printed())
+
+
+def test_the_ad_and_its_channels_go_too():
+    """The owner, 15 Nov 2026: "does save setup also save advertise stuff"."""
+    me, bone = pair()
+    bone.run("ServiceInviterDB.takesetup = true")
+    me.run('ServiceInviterDB.admsg = "WTS {services} pst" ServiceInviterDB.adwait = 3 '
+           'ServiceInviterDB.adskip = { ["General - Thunder Bluff"] = true }')
+    me.run("ServiceInviter_Test.Jobs.ShareSetup()")
+    send(me, bone, "Me")
+    assert bone.eval("ServiceInviterDB.admsg") == "WTS {services} pst"
+    assert bone.eval("ServiceInviterDB.adwait") == 3
+    assert bone.eval('ServiceInviterDB.adskip["General - Thunder Bluff"]') is True
