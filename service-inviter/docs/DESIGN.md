@@ -527,3 +527,16 @@ macro just doesnt seem to work at all though it did before"*.
   and every press posted it, wait or no wait. Now it empties between posts, so between posts it
   runs `/run ServiceInviter_AdWhy()`, which says which channel is next and in how long.
 - Wait on the Advertise tab takes minutes under one (0.5 = 30 seconds); 0 means every press posts.
+
+## 3.9.19: the quote holds everywhere; ads that did post are seen (15 Nov 2026)
+
+The owner: *"the intention was for someone to be told their quoted price at all points"*, and a
+screenshot of "Your ad didn't show up in [Guild] ... The game said: Trukt Hunt has joined the raid
+group." with the ad in guild chat.
+
+- **GOT carries the quote** (service, city, price): every teammate's copy holds the customer to the
+  price the inviter told them, so the warlock's trade check and window match the whisper. Someone
+  who joined with no quote keeps the first price worked out for them.
+- **Your own line is matched without the "|"**: the game sends the ad's "|" back as "||", so the
+  exact match failed and real posts were reported as missing, in guild and in Trade.
+- **Only chat-related game lines count as the reason** an ad failed, not raid joins.

@@ -259,3 +259,27 @@ def test_muted_or_slowed_down_is_said_and_presses_still_go_out():
     g.event("UI_ERROR_MESSAGE", 0, "You are being rate limited.")
     assert any("slowing your chat down" in p for p in g.printed())
     assert press(g).startswith("/2 ")
+
+
+def test_the_guild_try_counts_when_the_game_sends_the_bar_back_doubled():
+    """The owner's screenshot, 15 Nov 2026: "Your ad didn't show up in [Guild] ... The game said:
+    Trukt Hunt has joined the raid group." -- with the ad right there in guild chat."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true, adguild = true }')
+    m = press(g)
+    assert "| whisper inv" in m
+    g.event("CHAT_MSG_SYSTEM", "Trukt Hunt has joined the raid group.")
+    g.event("CHAT_MSG_GUILD", m[3:].replace("|", "||"), "Me-Forever")
+    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    said = " ".join(g.plain())
+    assert "showed up in guild chat" in said
+    assert "didn't show up" not in said
+
+
+def test_a_raid_join_is_not_the_reason_an_ad_failed():
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 5, "summons", false end')
+    g.run('ServiceInviterDB.role = "lock" ServiceInviter_Test.PostAd()')
+    g.event("CHAT_MSG_SYSTEM", "Trukt Hunt has joined the raid group.")
+    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    said = " ".join(g.plain())
+    assert "didn't show up" in said and "Trukt Hunt" not in said

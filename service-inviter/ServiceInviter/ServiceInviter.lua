@@ -1,4 +1,4 @@
--- Service Inviter v3.9.18
+-- Service Inviter v3.9.19
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -857,9 +857,13 @@ function Jobs.WatchRival(text, sender, market)
     Jobs.priceMarket = was
 end
 local function JobPrice(j)
-    -- the price they were told when invited stays theirs; otherwise today's for where they go
+    -- the price they were told stays theirs at every step (the owner, 15 Nov 2026: "the intention
+    -- was for someone to be told their quoted price at all points"): set when invited, or by the
+    -- teammate who invited them (GOT), or else fixed the first time it's worked out for them
     if j and j.price then return j.price end
-    return Core.Setting(ServiceInviterDB, (j and j.service) or "summons", j and j.dest).price
+    local p = Core.Setting(ServiceInviterDB, (j and j.service) or "summons", j and j.dest).price
+    if j and p and j.service and (j.dest or j.service ~= "summons") then j.price = p end
+    return p
 end
 -- Who gets paid for this customer, and whether that's you.
 local function PayeeFor(j, g)
@@ -929,6 +933,11 @@ function Jobs.New(name, text, why, channel)
         for i, j in ipairs(jobs) do if j == old then table.remove(jobs, i) break end end
     end
     local job = { name = name, text = text, why = why, channel = channel, status = "invited", t = GetTime(), ts = GetTime() }
+    -- a teammate invited them and said at what price (GOT): theirs here too
+    local q = Jobs.quoted and Jobs.quoted[name:lower()]
+    if q and GetTime() - q.t < 1800 then
+        job.price, job.service, job.dest = q.price, q.service or job.service, q.dest or job.dest
+    end
     jobs[#jobs + 1] = job
     jobByName[name] = job
     while #jobs > MAX_JOBS do
@@ -1444,7 +1453,7 @@ function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, a
         P("|cff999999   quoted|r " .. job.priceWhy)
         if Jobs.whyNow then Jobs.whyNow.price = job.priceWhy end
     end
-    if Jobs.TeamSay then Jobs.TeamSay("GOT", short, FullName("player") or "") end
+    if Jobs.TeamSay then Jobs.TeamSay("GOT", short, FullName("player") or "", svc or "", dest or "", quote or "") end
 end
 local function Handle(text, sender, guid)
     if paused then return end
@@ -2156,18 +2165,25 @@ end
 -- channel, or a channel that's switched off): say so, and don't make that channel wait. Twice in
 -- the same channel and it leaves the queue until you log in again.
 Jobs.adFails = {}
+-- The same line? The game sends a "|" back as "||" (the ad's "| whisper inv"), and may trim or
+-- squeeze spaces, so compare without them (the owner's screenshot, 15 Nov 2026: "Your ad didn't
+-- show up in [Guild]" for an ad that was right there in guild chat).
+function Jobs.SameLine(a, b)
+    local function n(x) return (tostring(x or ""):gsub("|", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower()) end
+    return n(a) == n(b)
+end
 function Jobs.AdSeen(text, sender)
     if type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" or IsSecret(sender) then return end
     local who = Ambiguate and Ambiguate(sender, "none") or sender
     if who ~= FullName("player") then return end
     -- posted from the SI Ad macro: it counts when it shows up, and the macro moves to the next channel
     local m = Jobs.macroAd
-    if m and text == m.text and not (Jobs.adPending and Jobs.adPending.text == text) then
+    if m and Jobs.SameLine(text, m.text) and not (Jobs.adPending and Jobs.SameLine(Jobs.adPending.text, text)) then
         Jobs.macroAd, Jobs.macroBody = nil, nil
         Jobs.AdPosted(m.key, m.name, m.text)
     end
     local p = Jobs.adPending
-    if not p or text ~= p.text then return end
+    if not p or not Jobs.SameLine(text, p.text) then return end
     Jobs.adPending = nil
     Jobs.adFails[p.key] = nil
     if p.key == "Guild" then P("|cff40ff40Your ad showed up in guild chat.|r The button works.") end
@@ -2180,8 +2196,12 @@ end
 function Jobs.AdNotice(text)
     if type(text) ~= "string" or IsSecret(text) then return end
     local p = Jobs.adPending
-    if p and GetTime() - p.t < 4 then p.why = text end
     local l = text:lower()
+    -- only what's about chat counts as the game's answer, not "X has joined the raid group" (the
+    -- owner's screenshot, 15 Nov 2026)
+    local about = l:find("mute") or l:find("silence") or l:find("suspend") or l:find("speak") or l:find("channel")
+        or l:find("rate limit") or l:find("too quickly") or l:find("too fast") or l:find("throttl") or l:find("not allowed")
+    if p and about and GetTime() - p.t < 4 then p.why = text end
     if l:find("unmute") then return end
     -- said, never acted on: nothing switches the ad off by itself (the owner, 15 Nov 2026: "stop
     -- killing it after 2 attempts - impossible to troubleshoot")
@@ -3255,7 +3275,7 @@ function Jobs.TeamWords(msg)
             ((f[9] == "1" and (f[10] or "") ~= "") and (", test whispers to " .. f[10]) or "") ..
             ((f[12] or "") ~= "" and (' ("' .. f[12] .. '")') or "")
     elseif f[1] == "GOT" then
-        return (f[3] or "?") .. " invited " .. (f[2] or "?")
+        return (f[3] or "?") .. " invited " .. (f[2] or "?") .. (tonumber(f[6]) and (" at " .. (Core.Money(tonumber(f[6])) or "free")) or "")
     elseif f[1] == "WANT" then
         return "asking " .. (f[2] or "?") .. " for their book since change " .. (f[3] or "?")
     elseif (f[1] == "C" or f[1] == "CB" or f[1] == "S" or f[1] == "A") and f[2] == "starting" then
@@ -3391,7 +3411,17 @@ function Jobs.TeamHear(msg, who, me)
         if not okInv then error(err, 0) end
         return "inviting" .. (test and " (test)" or "")
     end
-    if kind == "GOT" then return nil end
+    if kind == "GOT" then
+        -- who invited whom, and at what price: every copy holds them to the same quote
+        local buyer, price = f[2], tonumber(f[6])
+        if not buyer or buyer == "" or not price then return nil end
+        Jobs.quoted = Jobs.quoted or {}
+        local q = { price = price, service = (f[4] ~= "" and f[4]) or nil, dest = (f[5] ~= "" and f[5]) or nil, t = GetTime() }
+        Jobs.quoted[buyer:lower()] = q
+        local j = Jobs.Get(buyer)
+        if j then j.price = price j.service = q.service or j.service j.dest = q.dest or j.dest end
+        return "their quote: " .. (Core.Money(price) or "free")
+    end
     if kind == "PRICE" then return Jobs.HearPrices(f, who) end
     if kind == "MAN" then return Jobs.HearManual(f, who) end
     if kind == "SET" or kind == "SETEND" then return Jobs.HearSetup(kind, f, who) end
