@@ -513,3 +513,17 @@ are"*. The rewrite called `EditMacro(index, nil, nil, body)`; a client that want
 back refuses that, and the refusal was remembered as done, so the macro kept its first price. It
 now passes the macro's own name and icon, reads the macro back to check, and tries again the next
 second if it didn't take (saying so once, in red). Debug prints each new macro text.
+
+## 3.9.18: nothing switches the ad off by itself (15 Nov 2026)
+
+The owner: *"stop killing it after 2 attempts - impossible to troubleshoot"*, and *"actually the
+macro just doesnt seem to work at all though it did before"*.
+
+- An ad that doesn't show up is reported every time, with how many in a row and what the game
+  said; the channel stays in the queue. The queue line shows "last N didn't show up".
+- Muted, suspended or slowed down is said (at most every 10 seconds) and never turns ads off or
+  holds them.
+- The macro "worked before" because its updates were failing (3.9.17), so it kept its first ad
+  and every press posted it, wait or no wait. Now it empties between posts, so between posts it
+  runs `/run ServiceInviter_AdWhy()`, which says which channel is next and in how long.
+- Wait on the Advertise tab takes minutes under one (0.5 = 30 seconds); 0 means every press posts.

@@ -1,4 +1,4 @@
--- Service Inviter v3.9.17
+-- Service Inviter v3.9.18
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2016,7 +2016,8 @@ local function ToggleUI() if ToggleSetup then ToggleSetup() end end
 ----------------------------------------------------------------------
 MSG.AD = "{wts}{services} | whisper inv"
 local lastAdIn = {}   -- channel key -> when you last posted there
-local function AdWait() return math.max(1, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
+-- minutes, and under one is allowed (0.5 = 30 seconds); 0 = every press posts
+local function AdWait() return math.max(0, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
 -- Where the ad goes: every channel you're in that you listen to, each on its own (Trade 50 and
 -- Trade 4 are two), less any you switched off (the owner, 14 Nov 2026: "this needs to post to
 -- anything we watch, or have the option to. like maybe not general sometimes"). Each press of the
@@ -2045,7 +2046,7 @@ end
 local function AdChannels()
     local out = {}
     for _, c in ipairs(Jobs.WatchedChannels()) do
-        if not Jobs.AdSkipped(c.name) and (Jobs.adFails[c.name] or 0) < 2 then out[#out + 1] = c end
+        if not Jobs.AdSkipped(c.name) then out[#out + 1] = c end
     end
     return out
 end
@@ -2071,7 +2072,7 @@ function Jobs.AdQueueText()
     local q = Jobs.AdQueue()
     local lines = {}
     for nm, n in pairs(Jobs.adFails) do
-        if n >= 2 then lines[#lines + 1] = Jobs.ShortChannel(nm) .. "  |cffff8040didn't post twice: left out|r" end
+        if n >= 1 then lines[#lines + 1] = Jobs.ShortChannel(nm) .. "  |cffff8040last " .. n .. " didn't show up|r" end
     end
     if #q == 0 then return #lines > 0 and table.concat(lines, "\n") or "No channel to post in." end
     local tail = lines
@@ -2098,9 +2099,7 @@ local function AdState()
     -- try it in guild: every press posts there, nothing else (the owner, 15 Nov 2026: "ok prove
     -- this works by letting me post it in guild")
     if Opt("adguild") then return "ready", "Guild", "g", "Guild", text end
-    if Jobs.adMuted then return "off", "you're muted" end
     local now, soonest, any = GetTime(), nil, false
-    if Jobs.adHold and Jobs.adHold > now then return "wait", Jobs.adHold - now end
     for _, c in ipairs(AdChannels()) do
         local key, id, name = c.name, c.id, c.name
         if id then
@@ -2125,7 +2124,7 @@ local function AdLabel()
     local state, a = AdState()
     if state == "ready" then return "Post in " .. Jobs.ShortChannel(a), true end
     if state == "wait" then return ("Next ad %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
-    return Jobs.adMuted and "Muted" or "Ad off", false
+    return "Ad off", false
 end
 local function PostAd()
     local state, key, id, name, text = AdState()
@@ -2184,19 +2183,16 @@ function Jobs.AdNotice(text)
     if p and GetTime() - p.t < 4 then p.why = text end
     local l = text:lower()
     if l:find("unmute") then return end
+    -- said, never acted on: nothing switches the ad off by itself (the owner, 15 Nov 2026: "stop
+    -- killing it after 2 attempts - impossible to troubleshoot")
+    local now = GetTime()
+    if (Jobs.adSaidAt or 0) > now - 10 then return end
     if l:find("mute") or l:find("silence") or l:find("suspended your chat") then
-        if not Jobs.adMuted then
-            Jobs.adMuted = true
-            P("|cffff8040Your chat is suspended or muted, so no ads can go out.|r Ads are off until you log in again.")
-            if RefreshJobs then RefreshJobs() end
-        end
+        Jobs.adSaidAt = now
+        P("|cffff8040The game says your chat is muted or suspended.|r Ads won't show up until that's lifted.")
     elseif l:find("rate limit") or l:find("too quickly") or l:find("too fast") or l:find("throttl") then
-        local was = Jobs.adHold and Jobs.adHold > GetTime()
-        Jobs.adHold = GetTime() + 60
-        if not was then
-            P("|cffff8040The game is slowing your chat down.|r No ads for a minute. Each press would only make it longer.")
-            if RefreshJobs then RefreshJobs() end
-        end
+        Jobs.adSaidAt = now
+        P("|cffff8040The game is slowing your chat down.|r Each press while it lasts makes it longer.")
     end
 end
 function Jobs.AdCheck()
@@ -2205,10 +2201,8 @@ function Jobs.AdCheck()
     Jobs.adPending = nil
     lastAdIn[p.key] = nil
     Jobs.adFails[p.key] = (Jobs.adFails[p.key] or 0) + 1
-    local gone = Jobs.adFails[p.key] >= 2
-    P("|cffff8040Your ad didn't show up in " .. Jobs.ShortChannel(p.name) .. ".|r " ..
-        (p.why and ("The game said: " .. p.why .. ". ") or "The game didn't post it there (muted, or not allowed in that channel?). ") ..
-        (gone and "Left out of the queue until you log in again." or "Press again to try once more."))
+    P("|cffff8040Your ad didn't show up in|r " .. Jobs.ChanTag(p.name) .. " (" .. Jobs.adFails[p.key] .. " in a row). " ..
+        (p.why and ("The game said: " .. p.why .. ".") or "The game didn't post it there (muted, or not allowed in that channel?)."))
     if RefreshJobs then RefreshJobs() end
 end
 -- the channel the next ad goes to, as the game names it (for the setup's preview line)
@@ -2261,7 +2255,9 @@ function Jobs.WriteAdMacro(make)
     local idx = GetMacroIndexByName(Jobs.MACRO) or 0
     if idx == 0 and not make then return end
     local macro, a, _, name, text = Jobs.AdMacro()
-    local body = macro or ""
+    -- nothing ready: a press says why instead of doing nothing (the owner, 15 Nov 2026: "actually
+    -- the macro just doesnt seem to work at all though it did before")
+    local body = macro or "/run ServiceInviter_AdWhy()"
     Jobs.macroAd = macro and { key = a, name = name, text = text } or nil
     if idx == 0 then
         local ok, r = pcall(CreateMacro, Jobs.MACRO, "INV_MISC_QUESTIONMARK", body, true)
@@ -2289,6 +2285,17 @@ function Jobs.WriteAdMacro(make)
         D("SI Ad macro now: " .. body)
     end
     Jobs.macroBody = body
+end
+-- what a press of SI Ad does now, said in chat
+function ServiceInviter_AdWhy()
+    local state, a = AdState()
+    if state == "wait" then
+        local q = Jobs.AdQueue()
+        local nxt = q[1]
+        P("no ad yet: next is " .. (nxt and Jobs.ChanTag(nxt.name) or "?") .. " in " .. math.ceil(a) .. "s (Wait on the Advertise tab)")
+    elseif state ~= "ready" then
+        P("no ad: " .. tostring(a))
+    end
 end
 function Jobs.AdButton(btn)
     btn:SetAttribute("type", "macro")

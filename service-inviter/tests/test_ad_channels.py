@@ -68,21 +68,6 @@ def echo(g):
     g.event("CHAT_MSG_CHANNEL", last, "Me", "", "5. summons", "", "", "", "", "summons")
 
 
-def test_an_ad_that_never_shows_up_is_reported_and_the_channel_tried_again():
-    """The owner, 15 Nov 2026: "i have to press post in trade like 3 times then it works and for
-    summons it just doesnt work at all"."""
-    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 5, "summons", false end')
-    g.run('ServiceInviterDB.role = "lock"')
-    g.run("ServiceInviter_Test.PostAd()")
-    g.event("CHAT_MSG_CHANNEL_NOTICE_USER", "You are not allowed to speak in this channel")
-    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
-    said = " ".join(g.printed())
-    assert "Your ad didn't show up in summons." in said and "not allowed to speak" in said
-    assert g.eval("(ServiceInviter_Test.AdState())") == "ready"            # no wait started
-    g.run("ServiceInviter_Test.PostAd() CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
-    assert "Left out of the queue" in " ".join(g.printed())
-    assert g.eval("(ServiceInviter_Test.AdState())") == "off"
-    assert "didn't post twice" in g.eval("ServiceInviter_Test.Jobs.AdQueueText()")
 
 
 def test_an_ad_that_shows_up_is_fine():
@@ -95,28 +80,8 @@ def test_an_ad_that_shows_up_is_fine():
     assert g.eval("(ServiceInviter_Test.AdState())") == "wait"
 
 
-def test_muted_turns_ads_off_until_you_log_in_again():
-    """The owner, 15 Nov 2026: "if i use the addon to try and post it blanks twice, third time it
-    just says rate limited after which i type immediately and it is still saying rate limited not
-    muted". Once the game says muted, no press sends anything."""
-    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
-    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.event("CHAT_MSG_SYSTEM", "You are muted.")
-    for _ in range(5):
-        g.run("ServiceInviter_Test.PostAd()")
-    assert posted(g) == []
-    assert any("chat is suspended or muted" in p for p in g.printed())
-    assert sum("chat is suspended or muted" in p for p in g.printed()) == 1      # said once, not every press
 
 
-def test_slowed_down_by_the_game_means_no_ad_for_a_minute():
-    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
-    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.event("UI_ERROR_MESSAGE", 0, "You are being rate limited.")
-    g.run("ServiceInviter_Test.PostAd()")
-    assert posted(g) == []
-    g.run("CLOCK = CLOCK + 61 ServiceInviter_Test.PostAd()")
-    assert len(posted(g)) == 1
 
 
 def test_unmuted_is_not_muted():
@@ -159,19 +124,8 @@ def test_the_main_window_and_setup_buttons_are_macros_too():
     assert press(g, "P2").startswith("/2 ")
 
 
-def test_muted_means_the_button_runs_nothing():
-    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
-    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.event("CHAT_MSG_SYSTEM", "You are muted.")
-    assert press(g) == ""
 
 
-def test_the_game_line_for_a_suspended_chat_turns_ads_off():
-    """The owner's screenshot, 15 Nov 2026."""
-    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
-    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.event("CHAT_MSG_SYSTEM", "We have temporarily suspended your chat and mail privileges. Check your email for more details.")
-    assert press(g) == ""
 
 
 def test_the_macro_runs_on_the_half_of_the_press_the_game_uses():
@@ -253,3 +207,55 @@ function EditMacro(i, n, icon, body) if n == nil or icon == nil then error("Usag
     body = g.eval("MACRO_LIST[1].body")
     assert body.startswith("/1 ") and "35" in body
     assert not any("Couldn't update" in p for p in g.printed())
+
+
+def test_between_posts_the_macro_says_why_instead_of_nothing():
+    """The owner, 15 Nov 2026: "actually the macro just doesnt seem to work at all though it did
+    before" -- it had been stuck on its first ad (3.9.17's fix); now it empties between posts."""
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 2, "Trade - City", false end\n' + MACROS)
+    g.run('ServiceInviterDB.role = "lock"')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    body = g.eval("MACRO_LIST[1].body")
+    assert body.startswith("/2 ")
+    g.event("CHAT_MSG_CHANNEL", body[3:], "Me", "", "2. Trade - City", "", "", "", "", "Trade - City")
+    g.run("ServiceInviter_Test.Tick(1)")
+    assert g.eval("MACRO_LIST[1].body") == "/run ServiceInviter_AdWhy()"
+    g.run("ServiceInviter_AdWhy()")
+    said = g.plain()[-1]
+    assert "no ad yet: next is [Trade - City] in" in said
+
+
+def test_a_wait_under_a_minute():
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 2, "Trade - City", false end')
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.adwait = 0.5 ServiceInviter_Test.PostAd()')
+    g.run("CLOCK = CLOCK + 29")
+    assert g.eval("(ServiceInviter_Test.AdState())") == "wait"
+    g.run("CLOCK = CLOCK + 2")
+    assert g.eval("(ServiceInviter_Test.AdState())") == "ready"
+
+
+
+def test_an_ad_that_never_shows_up_is_reported_every_time_and_never_dropped():
+    """The owner, 15 Nov 2026: "stop killing it after 2 attempts - impossible to troubleshoot"."""
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 5, "summons", false end')
+    g.run('ServiceInviterDB.role = "lock"')
+    for n in range(1, 4):
+        g.run("ServiceInviter_Test.PostAd()")
+        g.event("CHAT_MSG_CHANNEL_NOTICE_USER", "You are not allowed to speak in this channel")
+        g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+        said = " ".join(g.plain())
+        assert f"Your ad didn't show up in [summons] ({n} in a row)" in said and "not allowed to speak" in said
+        assert g.eval("(ServiceInviter_Test.AdState())") == "ready"        # still in the queue
+    assert "last 3 didn't show up" in g.eval("ServiceInviter_Test.Jobs.AdQueueText()")
+
+
+def test_muted_or_slowed_down_is_said_and_presses_still_go_out():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("CHAT_MSG_SYSTEM", "We have temporarily suspended your chat and mail privileges. Check your email for more details.")
+    assert any("chat is muted or suspended" in p for p in g.printed())
+    assert press(g).startswith("/1 ")
+    g.run("CLOCK = CLOCK + 11")
+    g.event("UI_ERROR_MESSAGE", 0, "You are being rate limited.")
+    assert any("slowing your chat down" in p for p in g.printed())
+    assert press(g).startswith("/2 ")
