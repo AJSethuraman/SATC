@@ -105,8 +105,8 @@ def test_muted_turns_ads_off_until_you_log_in_again():
     for _ in range(5):
         g.run("ServiceInviter_Test.PostAd()")
     assert posted(g) == []
-    assert any("You're muted" in p for p in g.printed())
-    assert sum("You're muted" in p for p in g.printed()) == 1      # said once, not every press
+    assert any("chat is suspended or muted" in p for p in g.printed())
+    assert sum("chat is suspended or muted" in p for p in g.printed()) == 1      # said once, not every press
 
 
 def test_slowed_down_by_the_game_means_no_ad_for_a_minute():
@@ -164,3 +164,24 @@ def test_muted_means_the_button_runs_nothing():
     g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
     g.event("CHAT_MSG_SYSTEM", "You are muted.")
     assert press(g) == ""
+
+
+def test_the_game_line_for_a_suspended_chat_turns_ads_off():
+    """The owner's screenshot, 15 Nov 2026."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("CHAT_MSG_SYSTEM", "We have temporarily suspended your chat and mail privileges. Check your email for more details.")
+    assert press(g) == ""
+
+
+def test_the_macro_runs_on_the_half_of_the_press_the_game_uses():
+    """Key-down or key-up: the queue moves once per press, on the half the game runs the macro on."""
+    for on_down in (True, False):
+        g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+        g.run(f'ServiceInviterDB.role = "lock" ServiceInviterDB.opts = {{ general = true }} '
+              f'function GetCVarBool(k) return {"true" if on_down else "false"} end')
+        g.run('local b = ServiceInviterAdButton local pre = b:GetScript("PreClick") GOT = {} '
+              'for _ = 1, 2 do for _, d in ipairs({ true, false }) do pre(b, "LeftButton", d) '
+              'if d == GetCVarBool() then GOT[#GOT + 1] = b:GetAttribute("macrotext") end end end')
+        assert g.eval("GOT[1]").startswith("/1 ")
+        assert g.eval("GOT[2]").startswith("/2 ")       # one channel per press, not two

@@ -1,4 +1,4 @@
--- Service Inviter v3.9.9
+-- Service Inviter v3.9.10
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2109,10 +2109,10 @@ function Jobs.AdNotice(text)
     if p and GetTime() - p.t < 4 then p.why = text end
     local l = text:lower()
     if l:find("unmute") then return end
-    if l:find("mute") or l:find("silence") then
+    if l:find("mute") or l:find("silence") or l:find("suspended your chat") then
         if not Jobs.adMuted then
             Jobs.adMuted = true
-            P("|cffff8040You're muted, so no ads can go out.|r Ads are off until you log in again.")
+            P("|cffff8040Your chat is suspended or muted, so no ads can go out.|r Ads are off until you log in again.")
             if RefreshJobs then RefreshJobs() end
         end
     elseif l:find("rate limit") or l:find("too quickly") or l:find("too fast") or l:find("throttl") then
@@ -2152,6 +2152,12 @@ function Jobs.AdMacro()
     if state ~= "ready" then return nil, state, key end
     return "/" .. id .. " " .. text, key, id, name, text
 end
+-- the half of the press the game runs the macro on
+function Jobs.AdHalf(down)
+    if down == nil then return true end
+    local onDown = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
+    return (down and true or false) == (onDown and true or false)
+end
 function Jobs.AdPress(btn)
     local fight = InCombatLockdown and InCombatLockdown()
     local macro, a, b, name, text = Jobs.AdMacro()
@@ -2172,8 +2178,11 @@ end
 function Jobs.AdButton(btn)
     btn:SetAttribute("type", "macro")
     btn:SetAttribute("macrotext", "")
-    btn:RegisterForClicks("AnyDown")   -- once per press: on the way up too would post a second ad
-    btn:SetScript("PreClick", function(self) Jobs.AdPress(self) end)
+    -- both halves of the press, as the game's own buttons do: it runs the macro on only one of
+    -- them (down or up, by your "cast on key down" setting). Registering just one half meant the
+    -- macro never ran for some settings, silently.
+    btn:RegisterForClicks("AnyUp", "AnyDown")
+    btn:SetScript("PreClick", function(self, _, down) if Jobs.AdHalf(down) then Jobs.AdPress(self) end end)
     return btn
 end
 -- A named button so a key can press it: /si bind ad F7
@@ -5532,7 +5541,7 @@ local function BuildSetupUI()
     Header(C1, y, "Post", FW) y = y - 30
     local post = Jobs.AdButton(FlatButton(page, 220, 44, "gold", 15, true, "ServiceInviterSetupAdPost"))
     post:SetPoint("TOPLEFT", C1, y) post:SetText("Post ad")
-    post:SetScript("PreClick", function(self) w.Save() Jobs.AdPress(self) w.Load() end)
+    post:SetScript("PreClick", function(self, _, down) if Jobs.AdHalf(down) then w.Save() Jobs.AdPress(self) w.Load() end end)
     Jobs.Tip(post, "The game sends an ad only on a key press or click: one press, one ad")
     w.adpost = post
     local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")

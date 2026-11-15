@@ -449,3 +449,11 @@ The ad buttons (main window, Setup, the bound key) are now macro buttons: a pres
 `SendChatMessage`, which the game kept dropping. Just before the press goes through, the addon
 fills in the next channel that's ready. In combat the macro can't change, so it posts what was
 ready when the fight started. `/si ad` typed in chat still uses the old call.
+
+## 3.9.10: the macro press, and a suspended chat (15 Nov 2026)
+
+The owner's screenshot: *"We have temporarily suspended your chat and mail privileges"*, and *"if it
+works like a macro does why do i not get something saying i'm muted like this"*. No line meant the
+macro never ran: the ad buttons listened to only the down half of a press, and the game runs a
+macro on down or up by the "cast on key down" setting. They now listen to both and act on the half
+the game uses, so one press is one ad. That suspension line also turns ads off.
