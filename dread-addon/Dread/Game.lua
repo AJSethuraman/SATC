@@ -74,7 +74,7 @@ local bar, sel = {}, 1
 local target, hover_id
 local toast_t = 0
 local frame, arena, hud, tree_frame, handle
-local ground, ground2, ground3
+local ground, ground2, ground3, edge
 local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
 local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
 local player_model
@@ -93,6 +93,43 @@ Game.paused = false
 local function say(msg)
   msg = "|cffff5555Dread|r " .. msg
   if ns.log then ns.log(msg) else print(msg) end
+end
+
+---------------------------------------------------------------- what happened, recorded as it happens (Capture.lua)
+function Game.session()
+  if not Game._cap then
+    DreadDB = DreadDB or {}
+    Game._cap = ns.Capture.session(DreadDB, ns.BUILD, time and time() or 0)
+  end
+  return Game._cap
+end
+
+function Game.shot(why)                                           -- a screenshot of this moment, if the budget and the setting allow
+  if DreadDB and DreadDB.shots == false then return false end
+  if ns.Capture.shot_allowed(Game.session(), why) then return ns.Capture.shot() end
+  return false
+end
+
+function Game.capture_enter(name)
+  local s = Game.session()
+  ns.Capture.enter(s, name)
+  if s.areas[name].entered == 1 then Game.shot("arrived " .. name) end        -- the first look at each place
+end
+
+-- Monsters drawn from a bare model are white. The first time the game opens, quietly look for creature ids that give them their skins
+-- (it stops as soon as every monster is covered, or at the end of the range, and is not repeated once it has finished).
+Game.autofind = true
+function Game.maybe_find()
+  if not Game.autofind then return false end
+  DreadDB = DreadDB or {}
+  if ns.Finder.complete(DreadDB.found) or (DreadDB.found_scan and DreadDB.found_scan.done) or ns.Finder.running() then return false end
+  return ns.Finder.start(nil, nil, say)
+end
+
+function Game.set_shots(on)
+  DreadDB = DreadDB or {}
+  if on == "on" or on == true then DreadDB.shots = true elseif on == "off" or on == false then DreadDB.shots = false end
+  return DreadDB.shots ~= false
 end
 
 ---------------------------------------------------------------- the save
@@ -146,6 +183,7 @@ end
 ---------------------------------------------------------------- worlds and areas
 local function enter(name, arrive)
   area = Zone.get(name)
+  Game.capture_enter(name)
   Combat.enter(world, area)
   if arrive then world.player.x, world.player.y = arrive.x, arrive.y end
   target = nil
@@ -163,7 +201,7 @@ local function enter(name, arrive)
   toast_text:SetTextColor(1, 1, 1); toast_text:SetText(area.title); toast_t = 3
 end
 
-local function new_world()
+local function new_world(into)                               -- into: the area to start in; none means the start of the game
   local seed = (time and time() or 1) % 2147483647
   world = Combat.new({ w = 2400, h = 1500, seed = seed })
   if DreadDB and DreadDB.char then Combat.restore(world, DreadDB.char) end
@@ -174,7 +212,7 @@ local function new_world()
   sel = 1
   hover_id = nil
   target = nil
-  if frame then enter(Zone.START) end
+  if frame then enter(into or Zone.START) end
   sync_bar()
 end
 
@@ -439,6 +477,12 @@ local function build_arena()
   ground3 = arena:CreateTexture(nil, "BACKGROUND", nil, 2)         -- a third, huge layer of a different ground: patches of variety instead of one repeating look
   ground3:SetAllPoints(arena)
   ground3:SetHorizTile(true); ground3:SetVertTile(true)
+  edge = {}                                                        -- beyond the map: near-black void, with a lighter wall right at the boundary so the edge reads as an edge
+  for i = 1, 4 do
+    local v = arena:CreateTexture(nil, "BACKGROUND", nil, 3); v:SetColorTexture(0.01, 0.01, 0.02, 1); v:Hide()
+    local wl = arena:CreateTexture(nil, "BACKGROUND", nil, 4); wl:SetColorTexture(0.42, 0.34, 0.22, 1); wl:Hide()
+    edge[i] = { void = v, wall = wl }
+  end
 
   doodad_f = model_pool(arena, MAX_DOODAD, 140, 170)
   mon_f = model_pool(arena, MAX_MON, 64, 80)
@@ -462,6 +506,11 @@ local function build_arena()
     local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(70, 70); f:Hide()
     f.icon = tex(f, "OVERLAY"); f.icon:SetSize(26, 26); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
     proj_f[i] = f
+  end
+  Game._mp = {}                                                    -- what monsters throw: a glowing bolt each, drawn where the rules say it is
+  for i = 1, 12 do
+    local t = tex(arena, "OVERLAY"); t:SetTexture("Interface\\Icons\\Spell_Shadow_ShadowBolt"); t:SetBlendMode("ADD"); t:Hide()
+    Game._mp[i] = t
   end
   for i = 1, MAX_BLAST do
     local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(150, 150); f:Hide()
@@ -570,7 +619,7 @@ end
 
 local function build_input()
   frame:SetScript("OnMouseDown", function(_, button)
-    if world.over then new_world(); return end
+    if world.over then new_world(area and area.name); return end                -- you get up where you fell, not back at the start of the game
     local x, y = world_xy()
     if x < cam.x or y < cam.y or x > cam.x + vw or y > cam.y + vh then return end
     if button == "RightButton" then
@@ -601,10 +650,13 @@ local function build_input()
         hint_text:SetText(Skills.byId[hover_id].name .. " is now on slot " .. n)
         save()
       elseif bar[n] then
-        sel = n
-        if Combat.self_cast(bar[n]) and not world.over then               -- no aim needed: the key is the whole cast
-          local ok, why = Combat.cast(world, bar[n], world.player.x, world.player.y)
-          if not ok then hint_text:SetText(Skills.byId[bar[n]].name .. ": " .. tostring(why)) end
+        if Combat.self_cast(bar[n]) then                                  -- no aim needed: the key is the whole cast, and right click stays on what it was
+          if not world.over then
+            local ok, why = Combat.cast(world, bar[n], world.player.x, world.player.y)
+            if not ok then hint_text:SetText(Skills.byId[bar[n]].name .. ": " .. tostring(why)) end
+          end
+        else
+          sel = n
         end
       end
       handled = true
@@ -836,6 +888,36 @@ local function next_target(p)
   return best
 end
 
+-- Draw the void and the boundary wall for whatever part of the view lies outside the map. Sides: 1 left, 2 right, 3 below, 4 above.
+local WALL = 10
+function Game.draw_edges(cx, cy)
+  local rects = {                                                  -- x, y, w, h in view units, from the arena's bottom-left
+    { 0, 0, math.max(0, -cx), vh },                                  -- left of x = 0
+    { area.w - cx, 0, math.max(0, vw - (area.w - cx)), vh },        -- right of x = area.w
+    { 0, 0, vw, math.max(0, -cy) },                                  -- below y = 0
+    { 0, area.h - cy, vw, math.max(0, vh - (area.h - cy)) },        -- above y = area.h
+  }
+  local walls = {
+    { -cx - WALL, 0, WALL, vh }, { area.w - cx, 0, WALL, vh }, { 0, -cy - WALL, vw, WALL }, { 0, area.h - cy, vw, WALL },
+  }
+  Game._edges = {}
+  for i = 1, 4 do
+    local r, wl, e = rects[i], walls[i], edge[i]
+    if r[3] > 0 and r[4] > 0 then
+      e.void:ClearAllPoints(); e.void:SetPoint("BOTTOMLEFT", arena, "BOTTOMLEFT", r[1], r[2]); e.void:SetSize(r[3], r[4]); e.void:Show()
+    else
+      e.void:Hide()
+    end
+    local inside = (i == 1 and cx < 0) or (i == 2 and cx + vw > area.w) or (i == 3 and cy < 0) or (i == 4 and cy + vh > area.h)
+    if inside then
+      e.wall:ClearAllPoints(); e.wall:SetPoint("BOTTOMLEFT", arena, "BOTTOMLEFT", wl[1], wl[2]); e.wall:SetSize(wl[3], wl[4]); e.wall:Show()
+    else
+      e.wall:Hide()
+    end
+    Game._edges[i] = { void = e.void:IsShown(), x = r[1], y = r[2], w = r[3], h = r[4] }
+  end
+end
+
 local function advance(dt, p)
   -- walk up to a clicked monster and keep using the wand on it
   if target and not world.over and not Game.paused then
@@ -870,6 +952,7 @@ local function advance(dt, p)
   ground2:SetTexCoord(cam.x / T2, (cam.x + vw) / T2, -(cam.y + vh) / T2, -cam.y / T2)
   local T3 = fl.patch_tile
   ground3:SetTexCoord(cam.x / T3, (cam.x + vw) / T3, -(cam.y + vh) / T3, -cam.y / T3)
+  Game.draw_edges(cam.x, cam.y)
   draw_scenery()
   do                                                              -- the blocking circles, when asked for
     local n = 0
@@ -936,7 +1019,8 @@ local function draw_actors(p)
         if not f.owner then
           f.owner, f.anim = m, nil
           local ok
-          if m.model then ok = try(f.SetModel, f, m.model) else ok = try(f.SetCreature, f, m.cid) end
+          local cid = m.cid or ns.Finder.npc_for(DreadDB and DreadDB.found, m.model)       -- a creature id gives the model its skin; a bare model comes out white
+          if cid then ok = try(f.SetCreature, f, cid) else ok = try(f.SetModel, f, m.model) end
           f.fallback:SetShown(not ok)
           try(f.SetModelScale, f, 1)                            -- size comes from the frame alone (below); scaling the model as well made the boss twice as big as meant
           have[m] = f
@@ -956,7 +1040,7 @@ local function draw_actors(p)
       f.bar:SetWidth(math.max(1, 40 * math.max(0, m.life) / m.maxlife))
       f.bar:SetShown(not m.dead)
       if m.dead then set_anim(f, Game.ANIM.DEATH)
-      elseif m.bite_at and world.time - m.bite_at < 0.45 then set_anim(f, Game.ANIM.ATTACK)
+      elseif m.windup or (m.bite_at and world.time - m.bite_at < 0.45) then set_anim(f, Game.ANIM.ATTACK)           -- the wind-up shows: it is about to throw
       elseif m.moving then set_anim(f, Game.ANIM.WALK)
       else set_anim(f, Game.ANIM.STAND) end
       if not m.dead and m.awake then face(f, p.x - m.x, p.y - m.y) end
@@ -1004,8 +1088,23 @@ local function draw_world_and_events(dt, p)
       f.pid = nil; f:Hide()
     end
   end
+  for i = 1, 12 do
+    local q, t = world.mproj[i], Game._mp[i]
+    if q then
+      local size = q.boss and 40 or 22
+      if q.boss then t:SetVertexColor(0.75, 0.35, 1) else t:SetVertexColor(1, 0.85, 0.5) end
+      t:SetSize(size, size); t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", q.x - cam.x, q.y - cam.y)
+      try(t.SetRotation, t, world.time * 8)
+      t:Show()
+    else
+      t:Hide()
+    end
+  end
   for _, e in ipairs(Combat.drain(world)) do
     Fx.on_event(fx, e, world)
+    local why = ns.Capture.event(Game.session(), e)
+    if why then Game.shot(why) end
+    if e.k == "level" then Game.shot("level " .. e.level) end
     if e.k == "hit" and e.dmg > 0 then
       for _, fl in ipairs(float_f) do
         if fl.t <= 0 then
@@ -1049,10 +1148,12 @@ local function draw_world_and_events(dt, p)
     elseif e.k == "kill" or e.k == "pickup" then
       save()
     elseif e.k == "boss_dead" then
-      if not world.flags.den then
-        world.flags.den = true
-        world.player.st.quest_points = world.player.st.quest_points + 1
-        toast_text:SetTextColor(1, 1, 1); toast_text:SetText("Quest complete!  +1 skill point.  Press K."); toast_t = 6
+      local q = Zone.quest_by_boss(e.name)
+      if q and not world.flags[q.id] then
+        world.flags[q.id] = true
+        world.player.st.quest_points = world.player.st.quest_points + q.reward_points
+        toast_text:SetTextColor(1, 0.85, 0.3); toast_text:SetText("Quest complete: " .. q.title .. ".  +" .. q.reward_points .. " skill point.  Press K."); toast_t = 6
+        say("Quest complete: " .. q.title .. " (+" .. q.reward_points .. " skill point)")
         save()
       end
     end
@@ -1099,6 +1200,9 @@ local function draw_world_and_events(dt, p)
     local on = vis(ex.x - cam.x, ex.y - cam.y, 40, 40)
     mk.t:SetShown(on); mk.l:SetShown(on)
   end
+  for i = #area.exits + 1, #exit_marks do                                  -- an area with fewer exits than the last one: hide the marks left over, or they sit on the screen where they were
+    exit_marks[i].t:Hide(); exit_marks[i].l:Hide()
+  end
 
 end
 
@@ -1109,7 +1213,7 @@ local function update_hud(dt, p)
   mana_orb.set(p.mana / p.maxmana, math.floor(p.mana) .. "/" .. p.maxmana)
   xp_bar:SetWidth(math.max(1, (SLOTS * 42 - 2) * p.xp / Combat.xp_for_next(p.level)))
   info_text:SetText(string.format("Level %d    Skill points %d    %d FPS", p.level, Tree.points_free(p.st), math.floor(GetFramerate())))
-  zone_text:SetText(area.title .. (area.quest and (world.flags.den and "   Quest done" or ("   " .. area.quest.title)) or ""))
+  zone_text:SetText(area.title .. (area.quest and (world.flags[area.quest.id] and "   Quest done" or ("   " .. area.quest.title)) or ""))
   for i = 1, SLOTS do
     local b, id = slots[i], bar[i]
     if id then b.icon:SetTexture(icon_path(id)); b.icon:SetAlpha(1) else b.icon:SetTexture(nil) end
@@ -1131,14 +1235,45 @@ local function update_hud(dt, p)
   if tree_frame:IsShown() then refresh_tree() end
 end
 
-function Game.tick(dt)
+local function tick_body(dt)
   if dt > 0.1 then dt = 0.1 end
   Game.paused = tree_frame:IsShown()
   local p = world.player
+  local cap = Game.session()
+  if not Game.paused then
+    ns.Capture.tick(cap, dt)
+    Game._fps_t = (Game._fps_t or 0) + dt
+    if Game._fps_t >= 2 then Game._fps_t = 0; ns.Capture.sample_fps(cap, GetFramerate and GetFramerate() or nil) end
+    if ns.Capture.combat_shot_due(cap) then Game.shot("combat") end
+  end
+  if world.over and not Game._died then                              -- the moment of death, with what killed you
+    Game._died = true
+    local awake, boss_awake = 0, false
+    for _, m in ipairs(world.monsters) do
+      if not m.dead and m.awake then awake = awake + 1; if m.boss then boss_awake = true end end
+    end
+    ns.Capture.death(cap, { level = p.level, maxlife = p.maxlife, awake = awake, boss_awake = boss_awake })
+    Game.shot("death")
+  elseif not world.over then
+    Game._died = false
+  end
   advance(dt, p)
   draw_actors(p)
   draw_world_and_events(dt, p)
   update_hud(dt, p)
+end
+
+-- An error in a frame must not stop the game, and must not be lost: it is recorded (once per kind, with a count) and shown once.
+-- `Game.rethrow` (set by the tests) lets the error through, so a bug cannot hide behind this.
+function Game.tick(dt)
+  if Game.rethrow then return tick_body(dt) end
+  local ok, err = pcall(tick_body, dt)
+  if not ok then
+    local s = Game.session()
+    local before = #s.errors
+    ns.Capture.error(s, err)
+    if #s.errors > before then say("|cffff5555error|r " .. tostring(err):sub(1, 200) .. "   (/dread report has it)") end
+  end
 end
 
 ---------------------------------------------------------------- opening, closing, settings
@@ -1227,9 +1362,10 @@ function Game.toggle()
     save(); frame:Hide(); tree_frame:Hide()
     if ns.Log then ns.Log.close() end                              -- the log goes with the game
   else
-    if world.over then new_world() end
+    if world.over then new_world(area and area.name) end
     frame:Show()
     if ns.Log then ns.Log.open_beside(frame) end                   -- and the log opens at its side
+    Game.maybe_find()
     if Tree.points_spent(world.player.st) == 0 then refresh_tree(); tree_frame:Show() end
   end
 end

@@ -55,6 +55,60 @@ exit /b
 
 """
 
+WOW = r"C:\Program Files (x86)\World of Warcraft\_forever_"
+
+# One double-click that gathers what a play session recorded: Dread's saved data (the game's own record of what happened) and the
+# newest screenshots (taken automatically at deaths, bosses and rare finds) into one zip on the Desktop. Same rule as the installer:
+# no parenthesised blocks, because the ")" in "(x86)" ends them early.
+COLLECT = r"""@echo off
+setlocal
+set "WOW=__WOW__"
+set "OUT=%USERPROFILE%\Desktop\Dread-report.zip"
+title Collect Dread report
+
+if not exist "%WOW%" goto nofolder
+
+echo Collecting what Dread recorded...
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$ErrorActionPreference='Continue';" ^
+ "$tmp = Join-Path $env:TEMP 'dread-report';" ^
+ "if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force };" ^
+ "New-Item -ItemType Directory -Path $tmp | Out-Null;" ^
+ "$sv = @(); $sv += Get-ChildItem -Path '%WOW%\WTF\Account\*\SavedVariables\Dread.lua' -ErrorAction SilentlyContinue; $sv += Get-ChildItem -Path '%WOW%\WTF\Account\*\*\*\SavedVariables\Dread.lua' -ErrorAction SilentlyContinue;" ^
+ "$n = 0; foreach ($f in $sv) { $n++; Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $tmp ('Dread-saved-' + $n + '.lua')) };" ^
+ "$pics = Get-ChildItem -Path '%WOW%\Screenshots\*' -Include *.jpg,*.jpeg,*.png,*.tga -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-1) } | Sort-Object LastWriteTime -Descending | Select-Object -First 20;" ^
+ "foreach ($p in $pics) { Copy-Item -LiteralPath $p.FullName -Destination $tmp };" ^
+ "$count = @(Get-ChildItem -LiteralPath $tmp).Count;" ^
+ "if ($count -eq 0) { Write-Host 'Nothing found. In WoW type /reload first, then run this again.'; exit 2 };" ^
+ "if (Test-Path -LiteralPath '%OUT%') { Remove-Item -LiteralPath '%OUT%' -Force };" ^
+ "Compress-Archive -Path (Join-Path $tmp '*') -DestinationPath '%OUT%';" ^
+ "Write-Host ('Saved ' + $n + ' saved-data file(s) and ' + @($pics).Count + ' screenshot(s).')"
+if errorlevel 1 goto failed
+echo.
+echo Done: %OUT%
+echo Send that file over. (If it has no saved data, type /reload in WoW first, then run this again.)
+goto finish
+
+:nofolder
+echo Could not find: %WOW%
+echo Edit the WOW line at the top of this file to your game folder, then run it again.
+goto finish
+
+:failed
+echo.
+echo Nothing was collected. In WoW type /reload (that writes Dread's data to disk), then run this again.
+
+:finish
+echo.
+pause
+exit /b
+"""
+
+
+def collect_text():
+    return COLLECT.replace("__WOW__", WOW)
+
+
 def stamp():
     """Dread/Build.lua says when this install was built, and the window title shows it, so 'which version do you have' has an answer."""
     import datetime
@@ -77,9 +131,12 @@ def main():
         fh.write(text.replace("\n", "\r\n"))
     with open("dist/Dread.zip", "wb") as fh:
         fh.write(buf.getvalue())
+    with open("dist/Collect-Dread-Report.bat", "w", newline="") as fh:
+        fh.write(collect_text().replace("\n", "\r\n"))
     with zipfile.ZipFile("dist/Install-Dread.zip", "w", zipfile.ZIP_DEFLATED) as z:
         z.write("dist/Install-Dread.bat", "Install-Dread.bat")
-    print("wrote dist/Install-Dread.bat, dist/Install-Dread.zip and dist/Dread.zip")
+        z.write("dist/Collect-Dread-Report.bat", "Collect-Dread-Report.bat")
+    print("wrote dist/Install-Dread.bat, dist/Collect-Dread-Report.bat, dist/Install-Dread.zip and dist/Dread.zip")
 
 if __name__ == "__main__":
     main()
