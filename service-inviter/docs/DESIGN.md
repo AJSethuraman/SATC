@@ -401,3 +401,12 @@ entry, Send on arrival etc"*, *"build the team part to be... teams"*.
 - The owner: *"a regular and a scammer should be raid warned or whatever by POC"*. The regulars
   line, when it goes to the group, goes as a raid warning when the point of contact is leader or
   assist, like the didn't-pay call-out.
+
+## 3.9: the ad goes everywhere you listen (15 Nov 2026)
+
+The owner: *"this needs to post to anything we watch, or have the option to. like maybe not
+general sometimes"*. The ad's channels are every channel you're in that you listen to (Trade,
+General, your other channels), each on its own: Trade - English 50 and Trade - English 4 are two
+(before, only the first Trade channel ever got it). The Advertise tab shows a switch per channel;
+a switched-off channel is remembered by name (`adskip`). Each press posts in the next channel
+whose wait is over. An old "General off" from before 3.9 still holds.

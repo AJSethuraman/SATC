@@ -1,4 +1,4 @@
--- Service Inviter v3.8.4
+-- Service Inviter v3.9.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1674,6 +1674,9 @@ local function OnSystem(text)
 end
 
 local function ChannelAllowed(ch)
+    return Jobs.ChannelAllowed(ch)
+end
+function Jobs.ChannelAllowed(ch)
     ch = (ch or ""):lower()
     if Opt("trade") and (ch:find("trade", 1, true) or ch:find("services", 1, true)) then return true end
     if Opt("general") and ch:find("general", 1, true) then return true end
@@ -1909,25 +1912,38 @@ local function ToggleUI() if ToggleSetup then ToggleSetup() end end
 MSG.AD = "{wts}{services} | whisper inv"
 local lastAdIn = {}   -- channel key -> when you last posted there
 local function AdWait() return math.max(1, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
-local function AdChannels()
-    local db, out = ServiceInviterDB, {}
-    local ch = type(db.adchans) == "table" and db.adchans or { trade = true }
-    if ch.trade then out[#out + 1] = "trade" end
-    if ch.general then out[#out + 1] = "general" end
-    for name in tostring(db.adextra or ""):lower():gmatch("[^,]+") do
-        name = name:gsub("^%s+", ""):gsub("%s+$", "")
-        if name ~= "" then out[#out + 1] = name end
-    end
-    return out
+-- Where the ad goes: every channel you're in that you listen to, each on its own (Trade 50 and
+-- Trade 4 are two), less any you switched off (the owner, 14 Nov 2026: "this needs to post to
+-- anything we watch, or have the option to. like maybe not general sometimes"). Each press of the
+-- ad key posts in the next one whose wait is over. Returns { id, name } for each.
+function Jobs.AdSkipped(name)
+    local db = ServiceInviterDB
+    if type(db.adskip) == "table" then return db.adskip[name] and true or false end
+    -- before 3.9 Trade and General were ticked by hand: an old "General off" still holds;
+    -- otherwise everything you listen in gets the ad
+    local old = type(db.adchans) == "table" and db.adchans or nil
+    return (old and name:lower():find("general", 1, true) and not old.general) and true or false
 end
-local function ChannelId(key)
-    if not GetChannelList then return nil end
+function Jobs.WatchedChannels()
+    local out = {}
+    if not GetChannelList then return out end
     local list = { GetChannelList() }
     for i = 1, #list, 3 do
         local id, name = list[i], list[i + 1]
-        if type(name) == "string" and name:lower():find(key, 1, true) then return id, name end
+        if type(name) == "string" and not IsSecret(name) and Jobs.ChannelAllowed(name) then out[#out + 1] = { id = id, name = name } end
     end
-    return nil
+    return out
+end
+local function AdChannels()
+    local out = {}
+    for _, c in ipairs(Jobs.WatchedChannels()) do if not Jobs.AdSkipped(c.name) then out[#out + 1] = c end end
+    return out
+end
+-- "Trade - English 50" -> "Trade 50", for the ad button
+function Jobs.ShortChannel(name)
+    local first = tostring(name):match("^(%S+)") or tostring(name)
+    local num = tostring(name):match("(%d+)%s*$")
+    return first .. (num and (" " .. num) or "")
 end
 -- "ready", key, id, name, text  |  "wait", seconds  |  "off", why
 local function AdState()
@@ -1935,8 +1951,8 @@ local function AdState()
     if not text then return "off", why end
     if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
     local now, soonest, any = GetTime(), nil, false
-    for _, key in ipairs(AdChannels()) do
-        local id, name = ChannelId(key)
+    for _, c in ipairs(AdChannels()) do
+        local key, id, name = c.name, c.id, c.name
         if id then
             any = true
             local last = lastAdIn[key]
@@ -1952,12 +1968,12 @@ local function AdState()
             if not soonest or left < soonest then soonest = left end
         end
     end
-    if not any then return "off", "you're not in any of the ad channels" end
+    if not any then return "off", "you're not in any channel you listen to (or they're all switched off)" end
     return "wait", soonest
 end
 local function AdLabel()
     local state, a = AdState()
-    if state == "ready" then return "Post in " .. a:sub(1, 1):upper() .. a:sub(2), true end
+    if state == "ready" then return "Post in " .. Jobs.ShortChannel(a), true end
     if state == "wait" then return ("Next ad %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
     return "Ad off", false
 end
@@ -3761,12 +3777,14 @@ local function Preview(tab)
             local text = Core.BuildAd(db, g, fac, db.admsg)
             local state, a = AdState()
             local chans = AdChannels()
-            local first = chans[1] and (chans[1]:sub(1, 1):upper() .. chans[1]:sub(2)) or "No channel ticked"
+            local names = {}
+            for _, c in ipairs(chans) do names[#names + 1] = Jobs.ShortChannel(c.name) end
+            local first = #names > 0 and table.concat(names, ", ") or "No channel to post in"
             if text then
                 Say(first .. ", when you press the key", text)
                 Note(#text .. " of 255 letters")
             end
-            if state == "ready" then Note("Ready to post in " .. a:sub(1, 1):upper() .. a:sub(2) .. ".")
+            if state == "ready" then Note("Ready to post in " .. Jobs.ShortChannel(a) .. ".")
             elseif state == "wait" then Note(("Can post again in %d:%02d."):format(math.floor(a / 60), math.floor(a % 60)))
             else Note("No ad right now: " .. tostring(a)) end
             if not text then
@@ -5199,10 +5217,15 @@ local function BuildSetupUI()
     y = y - ROW - 12
     Header(C1, y, "Channels", FW) y = y - 28
     Label(C1, y - 6, "Post in")
-    Seg(nil, "adch_trade", C1 + FW - 340, y, 64, "Trade", nil, true)
-    Seg(nil, "adch_general", C1 + FW - 270, y, 80, "General", nil, true)
-    Box("adextra", C1 + FW - 184, y, 184, 100, "Other channels")
-    y = y - ROW
+    -- one switch per channel you listen in and are in right now; gold = the ad goes there
+    w.adChips, w.adChipNames = {}, {}
+    for i = 1, 8 do
+        local col, line = (i - 1) % 4, math.floor((i - 1) / 4)
+        local c = Seg(nil, "adch_" .. i, C1 + 112 + col * 156, y - line * 34, 150, "", nil, true)
+        w.adChips[i] = c
+    end
+    w.adNone = Label(C1 + 112, y - 6, "", "GameFontHighlightSmall", FW - 112)
+    y = y - ROW - 34
     Label(C1, y - 6, "Wait") Box("adwait", C1 + FW - 150, y, 56, 3, "5") Label(C1 + FW - 88, y - 7, "min / channel", "GameFontHighlightSmall")
     y = y - ROW - 12
     Header(C1, y, "Post", FW) y = y - 30
@@ -5373,11 +5396,15 @@ local function BuildSetupUI()
         boxes.kwwords:SetText(db.kwwords or MSG.KEYWORDS) boxes.kwwords:SetCursorPosition(0)
         boxes.cooldown:SetText(tostring(tonumber(db.cooldown) or 180))
         boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or MSG.CHANNELS) boxes.chanextra:SetCursorPosition(0)
-        boxes.adextra:SetText(db.adextra or "")
+        -- the ad's channels: those you listen in and are in now
+        local chans = Jobs.WatchedChannels()
+        for i, c in ipairs(w.adChips) do
+            local ch = chans[i]
+            w.adChipNames[i] = ch and ch.name or false
+            if ch then c:SetText(Jobs.ShortChannel(ch.name)) c:Show() c:SetChecked(not Jobs.AdSkipped(ch.name)) else c:Hide() end
+        end
+        w.adNone:SetText(#chans == 0 and "You're not in any channel you listen to." or "")
         boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
-        local adch = type(db.adchans) == "table" and db.adchans or { trade = true }
-        checks.adch_trade:SetChecked(adch.trade and true or false)
-        checks.adch_general:SetChecked(adch.general and true or false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
@@ -5464,9 +5491,14 @@ local function BuildSetupUI()
         do local n = tonumber(boxes.cooldown:GetText()) if n and n >= 0 then db.cooldown = math.floor(n + 0.5) end end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
         db.chanextra = boxes.chanextra:GetText()
-        db.adextra = boxes.adextra:GetText()
         db.adwait = tonumber(boxes.adwait:GetText()) or 5
-        db.adchans = { trade = checks.adch_trade:GetChecked() and true or false, general = checks.adch_general:GetChecked() and true or false }
+        -- a switched-off channel is remembered by name; ones you're not in now keep their setting
+        local skip = type(db.adskip) == "table" and db.adskip or {}
+        if type(db.adskip) ~= "table" then
+            for i = 1, #w.adChips do local nm = w.adChipNames[i] if nm then skip[nm] = Jobs.AdSkipped(nm) or nil end end
+        end
+        for i, c in ipairs(w.adChips) do local nm = w.adChipNames[i] if nm then skip[nm] = (not c:GetChecked()) or nil end end
+        db.adskip = skip
         db.role = checks.rolelock:GetChecked() and "lock" or "helper"
         db.dryrun = checks.dryrun:GetChecked() and true or false
         db.takesetup = checks.setup_use:GetChecked() and true or nil
