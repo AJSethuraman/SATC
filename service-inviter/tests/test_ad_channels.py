@@ -50,3 +50,13 @@ def test_the_queue_lists_what_is_ready_and_how_long_the_rest_wait():
     assert len(posted(g)) == 4
     g.run("CLOCK = CLOCK + 241 ServiceInviter_Test.PostAd()")    # its wait is over: the next press posts there
     assert len(posted(g)) == 5
+
+
+def test_a_channel_the_game_has_switched_off_is_skipped():
+    """The owner, 15 Nov 2026: "i seem to have to click the button multiple times for it to send
+    anything" -- presses went into channels the game had disabled (Trade outside a city)."""
+    g = world(LOCK, "summons = { price = 35 }", extra='''function GetChannelList() return 2, "Trade - City", true,
+        4, "Trade - English 4", false end''')
+    g.run('ServiceInviterDB.role = "lock"')
+    g.run("ServiceInviter_Test.PostAd()")
+    assert posted(g) == [4]                    # the first press posts, in a channel that works

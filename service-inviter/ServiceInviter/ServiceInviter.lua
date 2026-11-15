@@ -1,4 +1,4 @@
--- Service Inviter v3.9.2
+-- Service Inviter v3.9.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1929,8 +1929,11 @@ function Jobs.WatchedChannels()
     if not GetChannelList then return out end
     local list = { GetChannelList() }
     for i = 1, #list, 3 do
-        local id, name = list[i], list[i + 1]
-        if type(name) == "string" and not IsSecret(name) and Jobs.ChannelAllowed(name) then out[#out + 1] = { id = id, name = name } end
+        local id, name, disabled = list[i], list[i + 1], list[i + 2]
+        -- a channel the game has switched off for you (Trade outside a city) takes no ad: a press
+        -- into it sends nothing (the owner, 15 Nov 2026: "i seem to have to click the button
+        -- multiple times for it to send anything")
+        if type(name) == "string" and not IsSecret(name) and disabled ~= true and Jobs.ChannelAllowed(name) then out[#out + 1] = { id = id, name = name } end
     end
     return out
 end
