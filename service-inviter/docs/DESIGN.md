@@ -600,3 +600,15 @@ per channel (the ones you listen in, then any other a rival was heard in), a col
 sell, each price in the color of what set it, and why on hover; NEXT AD marks the channel the next
 press posts in. Under it, the last six summon ads heard and what came of each. It refreshes every
 second while open. `/si prices text` and Tools -> Lists -> Prices keep the text version.
+
+## 3.9.26: only a whisper invites by itself (15 Nov 2026)
+
+The owner: *"right now it auto invites from chat (i do not want that to happen) I want to ONLY
+offer invites automatically from people who whisper"*. A buyer heard in a channel gets a row on the
+list with status Asked, their quote, and an Invite button; nothing is sent to them until you press
+it, and the welcome follows once the game says the invite went out. Asking again keeps the one row.
+A whisper ("wtb summon tb", "inv") still invites at once. On a team, a channel buyer handed to the
+point of contact is offered on their list the same way (BUY carries whether it came from a
+whisper). General has "Auto-invite channel buyers", off, to put the old way back; it travels with
+Send my setup. The tests written before this run with it on (`tests/conftest.py`), and
+`tests/test_whisper_only.py` covers the default.

@@ -1,4 +1,4 @@
--- Service Inviter v3.9.25
+-- Service Inviter v3.9.26
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1439,6 +1439,28 @@ end
 
 -- Invite a buyer (or, in test mode, run them through without inviting): used for your own buyers
 -- and for buyers a teammate hands you as the point of contact. quote: the price they were told.
+-- A buyer heard in a channel: a row with an Invite button and their quote, no invite sent. Asked
+-- again while waiting: the same row, with what they said last. A whisper from them invites.
+function Jobs.AskRow(short, text, why, svc, dest, quote, channel, market, from)
+    fragments[short] = nil
+    local job = Jobs.Get(short)
+    local again = job and job.status == "asked"
+    if not again then job = Jobs.New(short, text, why, channel) end
+    job.text, job.why, job.channel = text, why, channel
+    job.service, job.dest, job.market, job.price = svc, dest, market, quote
+    job.status, job.ts = "asked", job.ts or GetTime()
+    job.priceWhy = from and ("|cff" .. Jobs.PRICE_COLORS.team .. (Core.Money(quote) or "free") .. "|r in " .. Jobs.ChanTag(market or channel) ..
+        "|cffaaaaaa: priced by|r |cff" .. Jobs.PRICE_COLORS.team .. from .. "|r|cffaaaaaa's copy, which heard them|r")
+        or (svc and Jobs.PriceWhy(svc, dest, market)) or nil
+    Jobs.invitedNow = true
+    if Jobs.whyNow then Jobs.whyNow.why = "offered: press Invite on their row" end
+    if again then if RefreshJobs then RefreshJobs() end return end
+    P("|cffe9b949ASKED|r " .. short .. "  " .. JobWhere(job) .. "  · " .. Jobs.ChanTag(market or channel) .. " " .. (Core.Money(quote) or "free") ..
+        "  |cff999999press Invite on their row|r")
+    P("|cff999999   because|r " .. Jobs.ChanTag(market or channel) .. " |cff999999\"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
+    if job.priceWhy then P("|cff999999   quoted|r " .. job.priceWhy) end
+    if RefreshJobs then RefreshJobs() end
+end
 function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, answered, test)
     local now = GetTime()
     lastInvite[short] = now
@@ -1590,12 +1612,20 @@ local function Handle(text, sender, guid)
     -- a team with a point of contact who isn't you: hand them the buyer and the quote (the owner,
     -- 14 Nov 2026: "i told you i want a point of contact, so that. it just gives them that point in
     -- time price"). They invite and do the talking; you never reach the stranger.
+    -- only a whisper invites by itself; a buyer in a channel gets a row with an Invite button (the
+    -- owner, 15 Nov 2026: "right now it auto invites from chat (i do not want that to happen) I want
+    -- to ONLY offer invites automatically from people who whisper")
+    local auto = curChannel == "whisper" or ServiceInviterDB.chanauto == true
     local poc = Jobs.POC and Jobs.POC()
     if poc and poc ~= FullName("player") then
-        lastInvite[short] = now
+        if auto then lastInvite[short] = now end
         fragments[short] = nil
-        Jobs.HandOff(poc, short, svc, dest, quote, curChannel, Jobs.market, text, why)
+        Jobs.HandOff(poc, short, svc, dest, quote, curChannel, Jobs.market, text, why, auto)
         Jobs.invitedNow = true
+        return
+    end
+    if not auto then
+        Jobs.AskRow(short, text, why, svc, dest, quote, curChannel, Jobs.market)
         return
     end
     Jobs.InviteBuyer(short, text, why, svc, dest, quote, curChannel, Jobs.market, answered,
@@ -3395,11 +3425,11 @@ function Jobs.SayHi(ask)
     Jobs.SendPrices()
 end
 -- Hand a buyer and their quote to the point of contact (marked as a test when you're testing).
-function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why)
+function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why, auto)
     local db = ServiceInviterDB
     local test = db.dryrun and "1" or "0"
     Jobs.TeamSay("BUY", poc, buyer, svc or "summons", dest or "", quote or "", channel or "", market or "", test,
-        db.dryrun and (db.testto or FullName("player") or "") or "", why or "", tostring(said or ""):sub(1, 60))
+        db.dryrun and (db.testto or FullName("player") or "") or "", why or "", tostring(said or ""):sub(1, 60), auto and "1" or "0")
     P((db.dryrun and "|cffffd100TEST|r " or "") .. "handed " .. buyer .. " " .. Jobs.ChanTag(market or channel) .. " quoted " ..
         (Core.Money(quote) or "free") .. " to |cff" .. Jobs.PRICE_COLORS.team .. poc .. "|r")
     if svc then P("|cff999999   quoted|r " .. Jobs.PriceWhy(svc, dest, market)) end
@@ -3452,6 +3482,12 @@ function Jobs.TeamHear(msg, who, me)
         local test = (f[9] == "1" or ServiceInviterDB.dryrun) and { to = (f[9] == "1" and f[10] ~= "" and f[10]) or ServiceInviterDB.testto } or nil
         P((test and "|cffffd100TEST|r " or "") .. "|cff" .. Jobs.PRICE_COLORS.team .. who .. "|r handed you " .. buyer .. " " ..
             Jobs.ChanTag(market ~= "" and market or channel) .. " quoted " .. (Core.Money(quote) or "free"))
+        -- heard in a channel (not a whisper): offered on the point of contact's list, not invited
+        if f[13] == "0" then
+            Jobs.AskRow(buyer, f[12] or "", f[11] or "", svc ~= "" and svc or "summons", dest ~= "" and dest or nil, quote,
+                channel, market ~= "" and market or nil, who)
+            return "offered on your list (heard in a channel)"
+        end
         Jobs.handFrom = who
         local okInv, err = pcall(Jobs.InviteBuyer, buyer, f[12] or "", f[11] or "", svc ~= "" and svc or "summons", dest ~= "" and dest or nil, quote,
             channel, market ~= "" and market or nil, nil, test)
@@ -3564,7 +3600,7 @@ end
 -- what's about one person (warlock or not, test mode, selling, running, keys, debug, the helper
 -- you whisper).
 Jobs.SETUP_TEXTS = { "welcomemsg", "askmsg", "loyaltymsg", "scammsg", "alertmsg", "paymsg", "offermsg", "thanksmsg",
-    "admsg", "adextra", "adwait", "chanextra", "cooldown", "kwwords" }
+    "admsg", "adextra", "adwait", "chanextra", "cooldown", "kwwords", "chanauto" }
 Jobs.SETUP_OPTS = { "trade", "general", "say", "yell", "kwon", "welcome", "marks", "guildteam", "buffarrivals", "buffpop", "countshards", "skipafk" }
 Jobs.SETUP_SVC = { summons = { "on", "invite", "price", "floor", "mode", "undercut", "payee" }, blessing = { "on", "invite", "words", "spell" } }
 function Jobs.SetupEntries()
@@ -4971,9 +5007,12 @@ end
 function Jobs.InviteClicked(job)
     if not job then return end
     local now = GetTime()
+    local wasAsked = job.status == "asked"
     job.t, job.tries, job.suggested = now, nil, nil
     lastInvite[job.name], pending[job.name] = now, now
     Jobs.Set(job.name, "invited")
+    if wasAsked and not job.confirmed then job.quoteLater = true end
+    Jobs.Sent(job)
 end
 
 -- The cast strip's look: gold when it's a click for you, quiet otherwise.
@@ -5773,7 +5812,10 @@ local function BuildSetupUI()
     Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 4, "180") Label(C1 + CW - 30, y - 7, "sec", "GameFontHighlightSmall") y = y - ROW
     Toggle("autoshow", C1, y, "Open list on invite", true) y = y - ROW
     -- these words in a whisper invite; in a public channel they never do
-    Label(C1, y - 6, "Whisper words") Box("kwwords", C1 + 112, y, CW - 112, 60, "inv, invite") y = y - ROW - 12
+    Label(C1, y - 6, "Whisper words") Box("kwwords", C1 + 112, y, CW - 112, 60, "inv, invite") y = y - ROW
+    -- a buyer in a channel: off, a row with an Invite button; on, invited at once (the owner, 15 Nov
+    -- 2026: "I want to ONLY offer invites automatically from people who whisper")
+    Toggle("chanauto", C1, y, "Auto-invite channel buyers") y = y - ROW - 12
     Header(C1, y, "On sale") y = y - 28
     w.onsale = Label(C1, y - 4, "", nil, CW)
 
@@ -6145,6 +6187,7 @@ local function BuildSetupUI()
         checks.setup_ask:SetChecked(not db.takesetup) checks.setup_use:SetChecked(db.takesetup and true or false)
         checks.selling:SetChecked(Opt("enabled") and true or false)
         checks.near:SetChecked(db.near ~= false)
+        checks.chanauto:SetChecked(db.chanauto == true)
         checks.debug:SetChecked(db.debug and true or false)
         -- who gets paid by default
         local d = type(db.payee) == "table" and db.payee or {}
@@ -6234,6 +6277,7 @@ local function BuildSetupUI()
         db.dryrun = checks.dryrun:GetChecked() and true or false
         db.takesetup = checks.setup_use:GetChecked() and true or nil
         db.near = checks.near:GetChecked() and true or false
+        db.chanauto = checks.chanauto:GetChecked() and true or nil
         db.debug = checks.debug:GetChecked() and true or false
         debugOn = db.debug
         local mode = checks.pay_me:GetChecked() and "me" or (checks.pay_name:GetChecked() and "name" or "provider")

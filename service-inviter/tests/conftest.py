@@ -7,6 +7,7 @@ from lupa import lua51
 HERE = Path(__file__).parent
 ADDON = HERE.parent / "ServiceInviter" / "ServiceInviter.lua"
 CORE = HERE.parent / "ServiceInviter" / "Services.lua"
+CHANAUTO = True   # see Game.__init__
 
 # A party of two others: the lock and a customer, both targetable and in range.
 GROUP = """
@@ -28,6 +29,11 @@ class Game:
             self.lua.execute(before)
         self.lua.execute(CORE.read_text())
         self.lua.execute(ADDON.read_text())
+        # the tests written before 3.9.26 start their customers from a buyer's line in Trade, which
+        # invited by itself until then; that is now a switch, off unless you turn it on
+        # (tests/test_whisper_only.py covers the default)
+        if CHANAUTO:
+            self.lua.execute("ServiceInviterDB.chanauto = true")
         self.g = self.lua.globals()
 
     def run(self, code):
