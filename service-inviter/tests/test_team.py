@@ -266,7 +266,7 @@ def test_a_book_sync_is_two_lines_in_the_team_log():
     me.run("ServiceInviter_Test.Jobs.SayHi(false)")
     pump(me, bone, "Me")
     pump(bone, me, "Bone Charms")
-    me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick() while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+    me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick() while #ServiceInviter_Test.Jobs.outbox > 0 do CLOCK = CLOCK + 2 ServiceInviter_Test.Jobs.Drain() end")
     pump(me, bone, "Me")
     log = teamlog(bone)
     assert "customer book: sending started" in log and "lines in all" in log

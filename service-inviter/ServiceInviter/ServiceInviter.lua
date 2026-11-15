@@ -1,4 +1,4 @@
--- Service Inviter v3.9.7
+-- Service Inviter v3.9.8
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1728,6 +1728,7 @@ f:RegisterEvent("CHAT_MSG_WHISPER")
 f:RegisterEvent("CHAT_MSG_YELL")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE_USER")
+f:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -1859,6 +1860,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         local low = (type(SPELL_FAILED_LOWLEVEL) == "string" and SPELL_FAILED_LOWLEVEL ~= "") and SPELL_FAILED_LOWLEVEL or "too low level"
         if not IsSecret(emsg) and emsg:lower():find(low:lower(), 1, true) then pcall(BuffTooLow) end
         diag.uierr = { t = GetTime(), msg = tostring(sender or text) }
+        if not IsSecret(emsg) and emsg ~= "" then Jobs.AdNotice(emsg) end
         if debugOn then D("game error: " .. tostring(text) .. (sender and (" / " .. tostring(sender)) or "")) end
         return
     end
@@ -1892,7 +1894,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         if Jobs.TeamOn() then Report("team", pcall(Jobs.SayHi, true)) end
         return
     end
-    if event == "CHAT_MSG_CHANNEL_NOTICE_USER" then Jobs.AdNotice(tostring(text)) return end
+    if event == "CHAT_MSG_CHANNEL_NOTICE_USER" or event == "CHAT_MSG_CHANNEL_NOTICE" then Jobs.AdNotice(tostring(text)) return end
     if event == "CHAT_MSG_SYSTEM" then
         Jobs.AdNotice(text)
         if debugOn and text then
@@ -2031,7 +2033,9 @@ local function AdState()
     local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
     if not text then return "off", why end
     if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
+    if Jobs.adMuted then return "off", "you're muted" end
     local now, soonest, any = GetTime(), nil, false
+    if Jobs.adHold and Jobs.adHold > now then return "wait", Jobs.adHold - now end
     for _, c in ipairs(AdChannels()) do
         local key, id, name = c.name, c.id, c.name
         if id then
@@ -2056,7 +2060,7 @@ local function AdLabel()
     local state, a = AdState()
     if state == "ready" then return "Post in " .. Jobs.ShortChannel(a), true end
     if state == "wait" then return ("Next ad %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
-    return "Ad off", false
+    return Jobs.adMuted and "Muted" or "Ad off", false
 end
 local function PostAd()
     local state, key, id, name, text = AdState()
@@ -2091,9 +2095,30 @@ function Jobs.AdSeen(text, sender)
     Jobs.adFails[p.key] = nil
     D("ad seen in " .. tostring(p.name))
 end
+-- What the game says back. Muted: no ad can go out, so stop offering one until you log in again
+-- (the owner, 15 Nov 2026: "if i use the addon to try and post it blanks twice, third time it just
+-- says rate limited after which i type immediately and it is still saying rate limited not muted").
+-- Slowed down by the game: no ad for a minute, so a press doesn't make it longer.
 function Jobs.AdNotice(text)
+    if type(text) ~= "string" or IsSecret(text) then return end
     local p = Jobs.adPending
-    if p and type(text) == "string" and not IsSecret(text) and GetTime() - p.t < 4 then p.why = text end
+    if p and GetTime() - p.t < 4 then p.why = text end
+    local l = text:lower()
+    if l:find("unmute") then return end
+    if l:find("mute") or l:find("silence") then
+        if not Jobs.adMuted then
+            Jobs.adMuted = true
+            P("|cffff8040You're muted, so no ads can go out.|r Ads are off until you log in again.")
+            if RefreshJobs then RefreshJobs() end
+        end
+    elseif l:find("rate limit") or l:find("too quickly") or l:find("too fast") or l:find("throttl") then
+        local was = Jobs.adHold and Jobs.adHold > GetTime()
+        Jobs.adHold = GetTime() + 60
+        if not was then
+            P("|cffff8040The game is slowing your chat down.|r No ads for a minute. Each press would only make it longer.")
+            if RefreshJobs then RefreshJobs() end
+        end
+    end
 end
 function Jobs.AdCheck()
     local p = Jobs.adPending
@@ -3005,6 +3030,9 @@ function Jobs.TeamSend(quiet, ...)
     local send = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
     if not send then return end
     local went, ok = {}, true
+    Jobs.allSent = Jobs.allSent or {}
+    Jobs.allSent[#Jobs.allSent + 1] = GetTime()
+    while #Jobs.allSent > 0 and GetTime() - Jobs.allSent[1] > 60 do table.remove(Jobs.allSent, 1) end
     if Jobs.GuildTeam() then
         local okc, res = pcall(send, Jobs.Team.PREFIX, msg, "GUILD")
         if not okc or res == false or (type(res) == "number" and res ~= 0) then ok = false end
@@ -3101,6 +3129,9 @@ function Jobs.TeamLog(dir, who, msg, note)
     if debugOn then P("|cff999999team " .. line .. "|r") end
 end
 function Jobs.PrintTeamLog()
+    local n = 0
+    for _, t in ipairs(Jobs.allSent or {}) do if GetTime() - t <= 60 then n = n + 1 end end
+    P("Your copy sent " .. n .. " team messages in the last minute" .. (#Jobs.outbox > 0 and (", " .. #Jobs.outbox .. " waiting to go") or "") .. ".")
     if #Jobs.teamLog == 0 then
         P("No team messages since you logged in." .. (Jobs.TeamOn() and "" or " The team list is empty, so nothing is sent: /si team add NAME."))
         return
@@ -3541,6 +3572,7 @@ function Jobs.CheckBook(who, rev)
         b.rev, b.customers, b.scammers, b.an = 0, {}, {}, {}
     end
     if rev <= (b.rev or 0) then return nil end
+    if b.giveUp then return "their book: stopped asking (pieces kept going missing)" end
     Jobs.Team.asked = Jobs.Team.asked or {}
     local was = Jobs.Team.asked[who]
     if was and was.rev >= rev and GetTime() - was.t < 20 then return "their book: already asked" end
@@ -3615,14 +3647,29 @@ end
 -- Lines go out a few a second: the game drops addon messages sent faster than that.
 Jobs.outbox = {}
 Jobs.OUT_EVERY = 1
+Jobs.sentTimes = {}
+function Jobs.SentLastMinute()
+    local now, n = GetTime(), 0
+    for i = #Jobs.sentTimes, 1, -1 do
+        if now - Jobs.sentTimes[i] <= 60 then n = n + 1 else table.remove(Jobs.sentTimes, i) end
+    end
+    return n
+end
 function Jobs.Drain()
     local item = Jobs.outbox[1]
     if not item then return end
+    -- stopped: nothing goes out, queued or not
+    if ServiceInviterDB.stasis then Jobs.outbox = {} Jobs.bookSending = nil return end
+    -- background lines (book, setup) stay under 40 a minute, with room left for hellos, hand-offs
+    -- and your own chat (the owner, 15 Nov 2026: "when i type in trade chat it should return im
+    -- muted, it is still just saying rate limited")
+    if Jobs.SentLastMinute() >= 40 then Jobs.outWait = GetTime() + 5 return end
     if Jobs.TeamSend(true, unpack(item)) == false then
         Jobs.outWait = GetTime() + 2   -- the game said slow down
         return
     end
     table.remove(Jobs.outbox, 1)
+    Jobs.sentTimes[#Jobs.sentTimes + 1] = GetTime()
     if item[1] == "END" then Jobs.bookSending = nil end
 end
 -- A teammate's book line, or their WANT. True when it was one of these.
@@ -3661,13 +3708,19 @@ function Jobs.BookHear(kind, f, who, me)
             for i = 1, n do if not batch.got[i] then missing = i break end end
             Jobs.Team.recv[who] = nil
             if missing then
-                -- keep what arrived; ask again from the first gap
+                -- keep what arrived, and ask for the rest at their next hello (a minute or so),
+                -- not straight away: when the game is already dropping lines, asking at once only
+                -- adds to it. Three tries a session at most.
                 local upTo = missing > 1 and ((batch.rev[missing - 1] or 1) - 1) or (b.rev or 0)
                 if upTo > (b.rev or 0) then b.rev = upTo end
+                b.gaps = (b.gaps or 0) + 1
                 Jobs.Team.asked = Jobs.Team.asked or {}
                 Jobs.Team.asked[who] = { t = GetTime(), rev = r }
-                Jobs.TeamSend(true, "WANT", who, b.rev or 0)
-                Jobs.bookNote = "line " .. missing .. " of " .. n .. " didn't arrive: asked again from change " .. (b.rev or 0)
+                if b.gaps >= 3 then
+                    b.giveUp = true
+                    P("|cffff8040" .. who .. "'s customer book keeps arriving with pieces missing|r. Stopped asking until you log in again.")
+                end
+                Jobs.bookNote = "line " .. missing .. " of " .. n .. " didn't arrive: will ask again from change " .. (b.rev or 0) .. " at their next hello"
                 return true
             end
         end
@@ -6014,6 +6067,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         end
     elseif cmd == "stop" or cmd == "stasis" then
         ServiceInviterDB.stasis = true
+        Jobs.outbox, Jobs.bookSending = {}, nil   -- nothing queued goes out either
         Jobs.CloseJobs()
         P("|cffff8040stopped|r: hearing nothing and doing nothing, even after a reload. /si start to wake it.")
     elseif cmd == "start" or cmd == "wake" then

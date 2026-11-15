@@ -425,3 +425,18 @@ the addon says it is in the queue"*.
   dropped, so a book never goes out twice over.
 - **A hand invite from a teammate is invited by the point of contact too**: a muted character's
   invite to a stranger doesn't go through, and the addon only sees that it was asked for.
+
+## 3.9.8: muted, and not making the throttle worse (15 Nov 2026)
+
+The owner: *"if i type on my own, it says i am muted, if i use the addon to try and post it blanks
+twice, third time it just says rate limited after which i type immediately and it is still saying
+rate limited not muted"*.
+
+- **Muted turns ads off** until you log in again, said once; the button reads "Muted". The game's
+  "rate limited" is its throttle on repeated tries, and it hides the "muted" line while it lasts.
+- **Slowed down by the game: no ad for a minute**, since each press only extends it.
+- **A gap in a teammate's book is asked for at their next hello**, not straight away, and after
+  three broken sends not again this session. Asking at once added traffic exactly when the game was
+  already dropping lines.
+- **Background lines stay under 40 a minute**, and `/si stop` drops what was queued. `/si teamlog`
+  says how many team messages your copy sent in the last minute.

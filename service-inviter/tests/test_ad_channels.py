@@ -93,3 +93,35 @@ def test_an_ad_that_shows_up_is_fine():
     g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
     assert "didn't show up" not in " ".join(g.printed())
     assert g.eval("(ServiceInviter_Test.AdState())") == "wait"
+
+
+def test_muted_turns_ads_off_until_you_log_in_again():
+    """The owner, 15 Nov 2026: "if i use the addon to try and post it blanks twice, third time it
+    just says rate limited after which i type immediately and it is still saying rate limited not
+    muted". Once the game says muted, no press sends anything."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("CHAT_MSG_SYSTEM", "You are muted.")
+    for _ in range(5):
+        g.run("ServiceInviter_Test.PostAd()")
+    assert posted(g) == []
+    assert any("You're muted" in p for p in g.printed())
+    assert sum("You're muted" in p for p in g.printed()) == 1      # said once, not every press
+
+
+def test_slowed_down_by_the_game_means_no_ad_for_a_minute():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("UI_ERROR_MESSAGE", 0, "You are being rate limited.")
+    g.run("ServiceInviter_Test.PostAd()")
+    assert posted(g) == []
+    g.run("CLOCK = CLOCK + 61 ServiceInviter_Test.PostAd()")
+    assert len(posted(g)) == 1
+
+
+def test_unmuted_is_not_muted():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("CHAT_MSG_SYSTEM", "You have been unmuted.")
+    g.run("ServiceInviter_Test.PostAd()")
+    assert len(posted(g)) == 1

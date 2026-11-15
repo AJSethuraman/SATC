@@ -5,7 +5,7 @@ from test_team import pair, pump
 
 
 def send(src, dst, sender):
-    src.run("while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+    src.run("while #ServiceInviter_Test.Jobs.outbox > 0 do CLOCK = CLOCK + 2 ServiceInviter_Test.Jobs.Drain() end")
     pump(src, dst, sender)
 
 

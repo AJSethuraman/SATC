@@ -37,7 +37,7 @@ def drain(src, dst, sender, rounds=6):
     """Let src answer what it was asked, a line at a time, and deliver it."""
     for _ in range(rounds):
         src.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
-        src.run("while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+        src.run("while #ServiceInviter_Test.Jobs.outbox > 0 do CLOCK = CLOCK + 2 ServiceInviter_Test.Jobs.Drain() end")
         pump(src, dst, sender)
         pump(dst, src, "Me" if sender != "Me" else "Bone Charms")
 
@@ -199,13 +199,19 @@ def test_lines_dropped_on_the_way_are_asked_for_again_and_filled_in():
     me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
     lines = me.eval("#ServiceInviter_Test.Jobs.outbox")
     assert lines < 120                                  # several customers to a line, not 300
-    me.run("while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+    me.run("while #ServiceInviter_Test.Jobs.outbox > 0 do CLOCK = CLOCK + 2 ServiceInviter_Test.Jobs.Drain() end")
     me.run("table.remove(ADDON_OUT, 20) table.remove(ADDON_OUT, 50)")    # two lines lost on the way
     pump(me, bone, "Me")
     count = 'local n = 0 for _ in pairs(ServiceInviterDB.teambooks["Me"].customers) do n = n + 1 end return n'
     assert bone.eval(f"(function() {count} end)()") < 300
-    assert "didn't arrive: asked again" in teamlog(bone)
-    pump(bone, me, "Bone Charms")                       # his WANT from the gap
+    assert "didn't arrive: will ask again" in teamlog(bone)
+    assert not bone.eval('(function() for _, o in ipairs(ADDON_OUT) do if tostring(o[2]):find("WANT") then return true end end return false end)()')                         # no re-ask straight away
+    pump(bone, me, "Bone Charms")
+    # not straight away (the owner, 15 Nov 2026: rate limited): his copy asks at my next hello
+    bone.run("CLOCK = CLOCK + 120")
+    me.run("CLOCK = CLOCK + 120 ServiceInviter_Test.Jobs.SayHi(true)")
+    pump(me, bone, "Me")
+    pump(bone, me, "Bone Charms")                       # his WANT
     drain(me, bone, "Me", rounds=6)
     assert bone.eval(f"(function() {count} end)()") == 300
     assert any("got Me's customer book: 300 customers" in p for p in bone.printed())
@@ -217,3 +223,45 @@ def test_posting_an_ad_pauses_the_background_lines():
     me = guild_world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")})
     me.run('ServiceInviterDB.role = "lock" ServiceInviter_Test.PostAd()')
     assert me.eval("ServiceInviter_Test.Jobs.outWait") >= me.eval("CLOCK") + 2
+
+
+def test_a_book_that_keeps_arriving_broken_stops_being_asked_for():
+    """Three broken sends and his copy stops asking until he logs in again: asking more only adds
+    to the traffic that broke it."""
+    me = guild_world({"player": ME})
+    me.run('ServiceInviterDB.customers = {} for i = 1, 100 do ServiceInviterDB.customers["Buyer" .. i] = '
+           '{ n = 1, by = { summons = 1 }, worth = 35, first = i, last = i, to = { ["Thunder Bluff"] = 1 } } end')
+    bone = guild_world({"player": BONE})
+    for g in (me, bone):
+        g.run("ServiceInviter_Test.Jobs.SayHi(true)")
+    pump(me, bone, "Me")
+    for _ in range(3):
+        pump(bone, me, "Bone Charms")
+        me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
+        me.run("while #ServiceInviter_Test.Jobs.outbox > 0 do CLOCK = CLOCK + 2 ServiceInviter_Test.Jobs.Drain() end")
+        me.run("table.remove(ADDON_OUT, 3)")
+        pump(me, bone, "Me")
+        bone.run("CLOCK = CLOCK + 120")
+        me.run("CLOCK = CLOCK + 120 ServiceInviter_Test.Jobs.SayHi(true)")
+        pump(me, bone, "Me")
+    assert any("keeps arriving with pieces missing" in p for p in bone.printed())
+    bone.run("ADDON_OUT = {}")
+    me.run("CLOCK = CLOCK + 120 ServiceInviter_Test.Jobs.SayHi(true)")
+    pump(me, bone, "Me")
+    assert not bone.eval('(function() for _, o in ipairs(ADDON_OUT) do if tostring(o[2]):find("WANT") then return true end end return false end)()')
+
+
+def test_background_lines_stay_under_forty_a_minute():
+    me = guild_world({"player": ME})
+    me.run('for i = 1, 100 do ServiceInviter_Test.Jobs.outbox[i] = { "S", "x" .. i } end')
+    me.run("for i = 1, 100 do ServiceInviter_Test.Jobs.Drain() end")       # all in the same second
+    assert me.eval("100 - #ServiceInviter_Test.Jobs.outbox") == 40
+    me.run("CLOCK = CLOCK + 61 for i = 1, 100 do ServiceInviter_Test.Jobs.Drain() end")
+    assert me.eval("100 - #ServiceInviter_Test.Jobs.outbox") == 80
+
+
+def test_stopping_drops_what_was_queued():
+    me = guild_world({"player": ME})
+    me.run('for i = 1, 10 do ServiceInviter_Test.Jobs.outbox[i] = { "S", "x" .. i } end')
+    me.run('SlashCmdList.SERVICEINVITER("stop")')
+    assert me.eval("#ServiceInviter_Test.Jobs.outbox") == 0
