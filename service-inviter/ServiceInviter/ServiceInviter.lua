@@ -1,4 +1,4 @@
--- Service Inviter v3.9.10
+-- Service Inviter v3.9.11
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1729,6 +1729,7 @@ f:RegisterEvent("CHAT_MSG_YELL")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE_USER")
 f:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE")
+f:RegisterEvent("CHAT_MSG_GUILD")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -1894,6 +1895,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         if Jobs.TeamOn() then Report("team", pcall(Jobs.SayHi, true)) end
         return
     end
+    if event == "CHAT_MSG_GUILD" then Report("ad", pcall(Jobs.AdSeen, text, sender)) return end
     if event == "CHAT_MSG_CHANNEL_NOTICE_USER" or event == "CHAT_MSG_CHANNEL_NOTICE" then Jobs.AdNotice(tostring(text)) return end
     if event == "CHAT_MSG_SYSTEM" then
         Jobs.AdNotice(text)
@@ -2033,6 +2035,9 @@ local function AdState()
     local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
     if not text then return "off", why end
     if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
+    -- try it in guild: every press posts there, nothing else (the owner, 15 Nov 2026: "ok prove
+    -- this works by letting me post it in guild")
+    if Opt("adguild") then return "ready", "Guild", "g", "Guild", text end
     if Jobs.adMuted then return "off", "you're muted" end
     local now, soonest, any = GetTime(), nil, false
     if Jobs.adHold and Jobs.adHold > now then return "wait", Jobs.adHold - now end
@@ -2068,15 +2073,17 @@ local function PostAd()
         P(state == "wait" and ("next ad in " .. math.ceil(key) .. "s") or ("no ad: " .. tostring(key)))
         return
     end
-    SendChatMessage(text, "CHANNEL", nil, id)
+    if key == "Guild" then SendChatMessage(text, "GUILD") else SendChatMessage(text, "CHANNEL", nil, id) end
     Jobs.AdPosted(key, name, text)
 end
 -- After an ad goes out, by a typed /si ad or a button press.
 function Jobs.AdPosted(key, name, text)
     local now = GetTime()
-    lastAdIn[key] = now
-    lastAdAt = now
-    Stats().ads = (Stats().ads or 0) + 1
+    if key ~= "Guild" then   -- a try in guild isn't an ad: no wait, no count
+        lastAdIn[key] = now
+        lastAdAt = now
+        Stats().ads = (Stats().ads or 0) + 1
+    end
     -- the ad counts once it shows up in the channel (Jobs.AdSeen); a few seconds without it and
     -- the press didn't post (Jobs.AdCheck)
     Jobs.adPending = { key = key, name = name, text = text, t = now }
@@ -2097,6 +2104,7 @@ function Jobs.AdSeen(text, sender)
     if who ~= FullName("player") or text ~= p.text then return end
     Jobs.adPending = nil
     Jobs.adFails[p.key] = nil
+    if p.key == "Guild" then P("|cff40ff40Your ad showed up in guild chat.|r The button works.") end
     D("ad seen in " .. tostring(p.name))
 end
 -- What the game says back. Muted: no ad can go out, so stop offering one until you log in again
@@ -5547,6 +5555,8 @@ local function BuildSetupUI()
     local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")
     w.showAdKey = showAdKey
     y = y - 60
+    Label(C1, y - 6, "Post to guild instead, to try it") Check("adguild", C1 + 300, y - 6, nil, true)
+    y = y - 34
     Label(C1, y, "Queue", "GameFontHighlightSmall")
     w.adQueue = Label(C1, y - 20, "", nil, 300)
 

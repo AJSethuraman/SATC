@@ -457,3 +457,9 @@ works like a macro does why do i not get something saying i'm muted like this"*.
 macro never ran: the ad buttons listened to only the down half of a press, and the game runs a
 macro on down or up by the "cast on key down" setting. They now listen to both and act on the half
 the game uses, so one press is one ad. That suspension line also turns ads off.
+
+## 3.9.11: try the ad in guild (15 Nov 2026)
+
+The owner: *"ok prove this works by letting me post it in guild"*. Advertise has "Post to guild
+instead, to try it": every press runs `/g <ad>` through the same macro button, with no wait and no
+ad counted, and when the line comes back in guild chat the addon says so in green.

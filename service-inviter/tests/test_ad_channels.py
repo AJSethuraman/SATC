@@ -185,3 +185,20 @@ def test_the_macro_runs_on_the_half_of_the_press_the_game_uses():
               'if d == GetCVarBool() then GOT[#GOT + 1] = b:GetAttribute("macrotext") end end end')
         assert g.eval("GOT[1]").startswith("/1 ")
         assert g.eval("GOT[2]").startswith("/2 ")       # one channel per press, not two
+
+
+def test_try_it_in_guild():
+    """The owner, 15 Nov 2026: "ok prove this works by letting me post it in guild"."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run("S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() S.checks.adguild:SetChecked(true) S.Save()")
+    m = press(g)
+    assert m.startswith("/g ") and "35" in m
+    assert press(g).startswith("/g ")                     # no wait between tries
+    g.event("CHAT_MSG_GUILD", m[3:], "Me")
+    assert any("showed up in guild chat" in p for p in g.printed())
+    g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
+    assert not any("didn't show up" in p for p in g.printed())
+    assert g.eval("ServiceInviter_Test.Stats().ads or 0") == 0   # a try isn't an ad
+    g.run("S.checks.adguild:SetChecked(false) S.Save()")
+    assert press(g).startswith("/1 ")
