@@ -283,3 +283,16 @@ def test_a_raid_join_is_not_the_reason_an_ad_failed():
     g.run("CLOCK = CLOCK + 5 ServiceInviter_Test.Jobs.AdCheck()")
     said = " ".join(g.plain())
     assert "didn't show up" in said and "Trukt Hunt" not in said
+
+
+def test_with_the_si_ad_macro_the_button_runs_it():
+    """The owner, 15 Nov 2026: "but it didnt show in guild chat at all?" -- the button's own macro
+    text never ran on their client; the SI Ad macro did."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    g.run('local b = ServiceInviterAdButton b:GetScript("PreClick")(b)')
+    assert g.eval('ServiceInviterAdButton:GetAttribute("type")') == "macro"
+    assert g.eval('ServiceInviterAdButton:GetAttribute("macro")') == 1
+    assert g.eval('ServiceInviterAdButton:GetAttribute("macrotext")') is None
+    assert g.eval("MACRO_LIST[1].body").startswith("/1 ")

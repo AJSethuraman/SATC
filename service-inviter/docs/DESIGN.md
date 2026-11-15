@@ -540,3 +540,11 @@ group." with the ad in guild chat.
 - **Your own line is matched without the "|"**: the game sends the ad's "|" back as "||", so the
   exact match failed and real posts were reported as missing, in guild and in Trade.
 - **Only chat-related game lines count as the reason** an ad failed, not raid joins.
+
+## 3.9.20: the ad buttons run the SI Ad macro (15 Nov 2026)
+
+The owner: *"but it didnt show in guild chat at all?"*. The buttons' own macro text never runs on
+their client; the SI Ad macro does. With an SI Ad macro made, every ad button (main window, Setup,
+the bound key) runs that macro (secure attribute `macro`, not `macrotext`), refreshed just before
+the press; its line showing up does the counting, as when you press the macro yourself. Without
+one, the buttons work as before.

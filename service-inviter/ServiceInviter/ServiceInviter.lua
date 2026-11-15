@@ -1,4 +1,4 @@
--- Service Inviter v3.9.19
+-- Service Inviter v3.9.20
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2247,7 +2247,20 @@ function Jobs.AdHalf(down)
     local onDown = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
     return (down and true or false) == (onDown and true or false)
 end
+-- The SI Ad macro, when you have one: the button runs it rather than macro text of its own, which
+-- the game never ran on the owner's client (the owner, 15 Nov 2026: "but it didnt show in guild
+-- chat at all?"), while the macro posted. The macro's own line showing up does the counting.
+function Jobs.UseAdMacro(btn)
+    if not GetMacroIndexByName or (InCombatLockdown and InCombatLockdown()) then return false end
+    Jobs.WriteAdMacro()
+    local idx = GetMacroIndexByName(Jobs.MACRO) or 0
+    if idx == 0 then return false end
+    btn:SetAttribute("macrotext", nil)
+    btn:SetAttribute("macro", idx)
+    return true
+end
 function Jobs.AdPress(btn)
+    if Jobs.UseAdMacro(btn) then D("ad button: runs your SI Ad macro") return end
     local fight = InCombatLockdown and InCombatLockdown()
     local macro, a, b, name, text = Jobs.AdMacro()
     if not fight then btn:SetAttribute("macrotext", macro or "") end
@@ -2262,6 +2275,7 @@ end
 -- out of combat, keep each ad button holding the ad that's ready now
 function Jobs.ArmAd(btn)
     if not btn or (InCombatLockdown and InCombatLockdown()) then return end
+    if Jobs.UseAdMacro(btn) then return end
     btn:SetAttribute("macrotext", (Jobs.AdMacro()) or "")
 end
 -- A real macro, "SI Ad", that the addon keeps filled with the ad for the next channel that's ready
