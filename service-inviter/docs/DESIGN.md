@@ -472,3 +472,13 @@ suspension notice, so the button never sent anything). Earlier: *"a regular macr
 out of combat, keeps it filled with `/<channel> <ad>` for the next channel that's ready. It counts
 when your line shows up in the channel, and then moves on to the next. With debug on, the ad
 buttons now print each half of a press and what they handed the game, to find out why they don't.
+
+## 3.9.13: where a quote came from (15 Nov 2026)
+
+The owner: *"we had dynamic pricing put us at 35 but it still seemed to say 45 to people but it's
+hard to tell where they are coming from - could be like trade 2 or 40"*. Prices are per channel, so
+the same city can be 35 in one Trade and 45 in another. Every invite, hand-off and near miss now
+names the full channel ("Trade - English 40", not "Trade") and says why the price is what it is:
+the rival, how long ago, the rule, or that it's your max and why (no seller seen there, no min, rule
+off), or held at your min. A buyer handed over by a teammate says it was priced by their copy.
+`/si why NAME` repeats the quote.
