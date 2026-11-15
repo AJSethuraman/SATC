@@ -165,10 +165,12 @@ def test_posting_the_ad_and_an_inv_whisper_answering_it():
     assert "answered your ad" in job(g, "Mirasha", "why")
 
 
-def test_inv_whisper_without_an_ad_is_ignored_when_keywords_are_off():
+def test_inv_whisper_without_an_ad_invites_too():
+    """Until 15 Nov 2026 this was ignored without an ad or Auto-invite; the owner: "when someone
+    whispers inv can it just auto invite no ask for confirmation"."""
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
     whisper(g, "Mirasha", "inv")
-    assert invited(g) == []
+    assert invited(g) == ["Mirasha"]
 
 
 def test_the_ad_waits_between_posts():

@@ -1,4 +1,4 @@
--- Service Inviter v3.9.6
+-- Service Inviter v3.9.7
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1327,7 +1327,10 @@ MSG.KEYWORDS = "inv, invite"
 local lastAdAt                 -- when you last posted an ad (see Advertise)
 local AD_ANSWER_WINDOW = 600   -- a whispered "inv" within 10 minutes of your ad answers it
 local function KeywordHit(text, whisper, force)
-    if not (Opt("kwon") or force) or type(text) ~= "string" or #text > 30 then return nil end
+    -- a whisper to you saying just "inv" always counts (the owner, 15 Nov 2026: "when someone
+    -- whispers inv can it just auto invite no ask for confirmation"); in public channels only with
+    -- Auto-invite on
+    if not (Opt("kwon") or force or whisper) or type(text) ~= "string" or #text > 30 then return nil end
     local norm = Norm(text)
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
@@ -1409,8 +1412,9 @@ local function Handle(text, sender, guid)
     local norm = Norm(text)
     local kw = KeywordHit(text, curChannel == "whisper")
     local answered
-    if not kw and adOpen and curChannel == "whisper" then
-        kw = KeywordHit(text, true, true)
+    if adOpen and curChannel == "whisper" then
+        -- an "inv" within 10 minutes of your ad answers it (counted in the stats)
+        kw = kw or KeywordHit(text, true, true)
         answered = kw and math.floor(now - lastAdAt) or nil
     end
     local ded = InExtraChannel(curChannel)
