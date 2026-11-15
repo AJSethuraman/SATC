@@ -548,3 +548,9 @@ their client; the SI Ad macro does. With an SI Ad macro made, every ad button (m
 the bound key) runs that macro (secure attribute `macro`, not `macrotext`), refreshed just before
 the press; its line showing up does the counting, as when you press the macro yourself. Without
 one, the buttons work as before.
+
+## 3.9.21: an arrow means "to" (15 Nov 2026)
+
+The owner: *"if someone types TB > UC or something they are saying from TB to UC so the final
+destination is UC"*. `>`, `->`, `=>` and `→` read as " to ", so the first "to <place>" rule picks the
+place after the arrow; the one before it is where they stand.

@@ -61,3 +61,17 @@ def test_picking_a_named_payee_greys_it_straight_away(game):
         c.pay_name._scripts.OnClick(c.pay_name)''')
     assert game.eval('rawget(ServiceInviter_Test.SetupChecks().autotrade, "_disabled") == true') is True
     assert game.eval('ServiceInviter_Test.SetupChecks().pay_place:GetChecked()') is False
+
+
+@pytest.mark.parametrize("text", ["wtb summon UC > TB", "wtb summon uc>tb", "wtb sum UC -> TB", "LF summon UC => TB", "wtb summon UC → TB"])
+def test_an_arrow_points_at_where_they_are_going(game, text):
+    """The owner, 15 Nov 2026: "if someone types TB > UC or something they are saying from TB to UC
+    so the final destination is UC"."""
+    ok, why = game.evaluate(text)
+    assert ok and "Thunder Bluff" in why, why
+
+
+@pytest.mark.parametrize("text", ["wtb summon TB > UC", "wtb summon tb>uc", "wtb sum TB -> UC"])
+def test_from_our_city_to_another_is_not_ours(game, text):
+    ok, why = game.evaluate(text)
+    assert not ok, why

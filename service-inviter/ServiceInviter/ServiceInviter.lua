@@ -1,4 +1,4 @@
--- Service Inviter v3.9.20
+-- Service Inviter v3.9.21
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -252,6 +252,11 @@ local function Norm(s)
     s = s:gsub("|h", "")
     s = s:lower()
     s = s:gsub("{.-}", " ")
+    -- an arrow means "to": "TB > UC" is from TB to UC, so UC is where they're going (the owner,
+    -- 15 Nov 2026: "if someone types TB > UC or something they are saying from TB to UC so the
+    -- final destination is UC")
+    s = s:gsub("\226\134\146", " to ")      -- the arrow character
+    s = s:gsub("[%-=]*>+", " to ")
     s = s:gsub("[^%w]+", " ")
     s = s:gsub("^%s+", ""):gsub("%s+$", "")
     return " " .. s .. " "
