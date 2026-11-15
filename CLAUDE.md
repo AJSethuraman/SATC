@@ -45,6 +45,9 @@ work on them to `BACKLOG.md`, not `PLAN.md`.
 (roster from the Blizzard API, raid signups from Discord). Its own `CLAUDE.md` governs it and the practice
 rules above do not. Merged 10 Nov 2026 from PR #482; **never run live yet**, so start at its
 `docs/PROJECT.md` "Phase 0". Tests: `cd forever-guild-bot && pytest -q` (28, offline, in CI).
+`service-inviter/` is the owner's WoW addon for selling summons and ports on the same server:
+the Lua is the source and `Install-ServiceInviter.bat` is **built** from it by `build.py`, never
+hand-edited. Tests: `cd service-inviter && pytest -q` (40, offline, in CI).
 
 > **Before starting anything substantial, read `docs/REPO-INVENTORY.md`.** It
 > maps what works, what is stranded on the 76 branches, what is blocked on a
@@ -221,6 +224,11 @@ every one of them was unreadable.
   `git fetch origin main && git merge-base --is-ancestor origin/main HEAD`.
   If it does not, merge `main` into the branch, push, and wait for green again.
   Found by Codex on #396, the PR that added this rule.
+- **CI runs only what a PR touches.** `test.yml` asks `.github/ci/select_jobs.py`
+  which jobs a diff needs: each project's folder plus what its tests read from
+  outside it. **A new project, or a new cross-folder read, goes in that file's
+  table, not in the workflow** -- a dependency missing from it means a PR that
+  breaks the reader goes green. A change under `.github/` runs everything.
 - **Still hold a merge** when the firm has said to, when CI is red, or when the
   PR carries a decision they have not answered yet. "Green" means green on the
   head you are merging, not on an earlier one.

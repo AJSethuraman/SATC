@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: Service Inviter
+## Notes: Finds buyers of your services in chat (summons, ports), invites them, and tracks each customer from invite to paid.
+## Author: AJ
+## Version: 1.5.0
+## SavedVariables: ServiceInviterDB
+
+ServiceInviter.lua
