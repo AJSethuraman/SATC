@@ -1,4 +1,4 @@
--- Service Inviter v3.9.16
+-- Service Inviter v3.9.17
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2271,7 +2271,22 @@ function Jobs.WriteAdMacro(make)
         end
         P("Made a macro called |cffffd100SI Ad|r. Type /macro, open the character tab, and drag it onto a bar (or bind it). Each press posts the ad in the next channel that's ready.")
     elseif body ~= Jobs.macroBody then
-        pcall(EditMacro, idx, nil, nil, body)
+        -- name and icon passed back as they are: some clients refuse an edit without them, and a
+        -- refused edit used to be remembered as done, so the macro kept its old price (the owner,
+        -- 15 Nov 2026: "the macro does not seem to be updating with the dynamic pricing though
+        -- the whispers are")
+        local okI, nm, icon, now = pcall(GetMacroInfo or function() end, idx)
+        if okI and now == body then Jobs.macroBody = body return end
+        local ok, err = pcall(EditMacro, idx, (okI and nm) or Jobs.MACRO, (okI and icon) or "INV_MISC_QUESTIONMARK", body)
+        local okR, _, _, after = pcall(GetMacroInfo or function() end, GetMacroIndexByName(Jobs.MACRO) or idx)
+        if not ok or (GetMacroInfo and okR and after ~= body) then
+            if not Jobs.macroWarned then
+                Jobs.macroWarned = true
+                P("|cffff6060Couldn't update the SI Ad macro|r" .. (ok and "" or (": " .. tostring(err))) .. ". It still holds the old ad.")
+            end
+            return   -- not remembered: tried again next second
+        end
+        D("SI Ad macro now: " .. body)
     end
     Jobs.macroBody = body
 end

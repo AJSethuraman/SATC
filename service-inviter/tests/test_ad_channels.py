@@ -207,7 +207,8 @@ def test_try_it_in_guild():
 MACROS = '''MACRO_LIST = {}
 function GetMacroIndexByName(n) for i, m in ipairs(MACRO_LIST) do if m.name == n then return i end end return 0 end
 function CreateMacro(n, icon, body, perChar) MACRO_LIST[#MACRO_LIST + 1] = { name = n, body = body, char = perChar } return #MACRO_LIST end
-function EditMacro(i, n, icon, body) MACRO_LIST[i].body = body return i end'''
+function EditMacro(i, n, icon, body) MACRO_LIST[i].body = body return i end
+function GetMacroInfo(i) local m = MACRO_LIST[i] if m then return m.name, "icon", m.body end end'''
 
 
 def test_the_si_ad_macro_holds_the_next_ad_and_moves_on_when_it_posts():
@@ -234,3 +235,21 @@ def test_the_macro_is_left_alone_until_you_ask_for_it():
     g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
     g.run("ServiceInviter_Test.Tick(1)")
     assert g.eval("#MACRO_LIST") == 0
+
+
+
+def test_the_macro_follows_a_rival_price_even_on_a_client_that_wants_the_name_back():
+    """The owner, 15 Nov 2026: "the macro does not seem to be updating with the dynamic pricing
+    though the whispers are"."""
+    strict = MACROS + """
+function EditMacro(i, n, icon, body) if n == nil or icon == nil then error("Usage: EditMacro(index, name, icon, body)") end
+    MACRO_LIST[i].body = body return i end"""
+    g = world(LOCK, "summons = { price = 45, match = true, floor = 30, undercut = 1 }", extra=CHANNELS + "\n" + strict)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    assert "45" in g.eval("MACRO_LIST[1].body")
+    g.event("CHAT_MSG_CHANNEL", "WTS summons to TB 36s pst", "Rival", "", "1. General - Thunder Bluff", "", "", "", "", "General - Thunder Bluff")
+    g.run("ServiceInviter_Test.Tick(1)")
+    body = g.eval("MACRO_LIST[1].body")
+    assert body.startswith("/1 ") and "35" in body
+    assert not any("Couldn't update" in p for p in g.printed())

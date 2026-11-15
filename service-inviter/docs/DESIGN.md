@@ -505,3 +505,11 @@ auto invite is meant to be via whispers only"*. The word list (General, now "Whi
 invites only from a whisper; in a public channel "inv" never does, whatever the old Auto-invite
 switch said. That switch is gone. A buyer's message in a channel ("wtb summon tb") still invites as
 before.
+
+## 3.9.17: the macro follows the price (15 Nov 2026)
+
+The owner: *"the macro does not seem to be updating with the dynamic pricing though the whispers
+are"*. The rewrite called `EditMacro(index, nil, nil, body)`; a client that wants the name and icon
+back refuses that, and the refusal was remembered as done, so the macro kept its first price. It
+now passes the macro's own name and icon, reads the macro back to check, and tries again the next
+second if it didn't take (saying so once, in red). Debug prints each new macro text.
