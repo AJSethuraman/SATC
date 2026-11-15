@@ -1,4 +1,4 @@
--- Service Inviter v3.9.11
+-- Service Inviter v3.9.12
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2098,10 +2098,17 @@ end
 -- the same channel and it leaves the queue until you log in again.
 Jobs.adFails = {}
 function Jobs.AdSeen(text, sender)
-    local p = Jobs.adPending
-    if not p or type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" or IsSecret(sender) then return end
+    if type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" or IsSecret(sender) then return end
     local who = Ambiguate and Ambiguate(sender, "none") or sender
-    if who ~= FullName("player") or text ~= p.text then return end
+    if who ~= FullName("player") then return end
+    -- posted from the SI Ad macro: it counts when it shows up, and the macro moves to the next channel
+    local m = Jobs.macroAd
+    if m and text == m.text and not (Jobs.adPending and Jobs.adPending.text == text) then
+        Jobs.macroAd, Jobs.macroBody = nil, nil
+        Jobs.AdPosted(m.key, m.name, m.text)
+    end
+    local p = Jobs.adPending
+    if not p or text ~= p.text then return end
     Jobs.adPending = nil
     Jobs.adFails[p.key] = nil
     if p.key == "Guild" then P("|cff40ff40Your ad showed up in guild chat.|r The button works.") end
@@ -2183,6 +2190,31 @@ function Jobs.ArmAd(btn)
     if not btn or (InCombatLockdown and InCombatLockdown()) then return end
     btn:SetAttribute("macrotext", (Jobs.AdMacro()) or "")
 end
+-- A real macro, "SI Ad", that the addon keeps filled with the ad for the next channel that's ready
+-- (the owner, 15 Nov 2026: "yeah nothing it is not working", of the button, after "what gets me is
+-- a regular macro can do this"). You put it on a bar or bind it; it's yours, so it posts exactly
+-- the way your own macro does. Rewritten out of combat only.
+Jobs.MACRO = "SI Ad"
+function Jobs.WriteAdMacro(make)
+    if InCombatLockdown and InCombatLockdown() then return end
+    if not (GetMacroIndexByName and CreateMacro and EditMacro) then return end
+    local idx = GetMacroIndexByName(Jobs.MACRO) or 0
+    if idx == 0 and not make then return end
+    local macro, a, _, name, text = Jobs.AdMacro()
+    local body = macro or ""
+    Jobs.macroAd = macro and { key = a, name = name, text = text } or nil
+    if idx == 0 then
+        local ok, r = pcall(CreateMacro, Jobs.MACRO, "INV_MISC_QUESTIONMARK", body, true)
+        if not ok or not r or r == 0 then
+            P("|cffff8040Couldn't make the SI Ad macro|r" .. (ok and "" or (": " .. tostring(r))) .. ". Your character's macro list may be full.")
+            return
+        end
+        P("Made a macro called |cffffd100SI Ad|r. Type /macro, open the character tab, and drag it onto a bar (or bind it). Each press posts the ad in the next channel that's ready.")
+    elseif body ~= Jobs.macroBody then
+        pcall(EditMacro, idx, nil, nil, body)
+    end
+    Jobs.macroBody = body
+end
 function Jobs.AdButton(btn)
     btn:SetAttribute("type", "macro")
     btn:SetAttribute("macrotext", "")
@@ -2190,7 +2222,13 @@ function Jobs.AdButton(btn)
     -- them (down or up, by your "cast on key down" setting). Registering just one half meant the
     -- macro never ran for some settings, silently.
     btn:RegisterForClicks("AnyUp", "AnyDown")
-    btn:SetScript("PreClick", function(self, _, down) if Jobs.AdHalf(down) then Jobs.AdPress(self) end end)
+    btn:SetScript("PreClick", function(self, mb, down)
+        D("ad button: " .. tostring(mb) .. (down and " down" or " up") .. (Jobs.AdHalf(down) and ", acting" or ", not this half"))
+        if Jobs.AdHalf(down) then Jobs.AdPress(self) end
+    end)
+    btn:SetScript("PostClick", function(self, _, down)
+        if Jobs.AdHalf(down) then D("ad button: the game was handed: " .. tostring(self:GetAttribute("macrotext"))) end
+    end)
     return btn
 end
 -- A named button so a key can press it: /si bind ad F7
@@ -4386,6 +4424,7 @@ ticker:SetScript("OnUpdate", function(_, el)
         if not ServiceInviterDB.stasis then
             Report("arrivals", pcall(CheckArrivals))
             Report("ad", pcall(Jobs.AdCheck))
+            Report("ad macro", pcall(Jobs.WriteAdMacro))
             Report("invites", pcall(Jobs.InviteCheck))
             if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
             if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 60 then Report("team", pcall(Jobs.SayHi, false)) end
@@ -5556,6 +5595,10 @@ local function BuildSetupUI()
     w.showAdKey = showAdKey
     y = y - 60
     Label(C1, y - 6, "Post to guild instead, to try it") Check("adguild", C1 + 300, y - 6, nil, true)
+    local mk = FlatButton(page, 180, 30, "plain", 13)
+    mk:SetPoint("TOPLEFT", C1 + 380, y + 1) mk:SetText("Make SI Ad macro")
+    mk:SetScript("OnClick", function() w.Save() Jobs.WriteAdMacro(true) end)
+    Jobs.Tip(mk, "A macro of your own that holds the ad: put it on a bar or bind it")
     y = y - 34
     Label(C1, y, "Queue", "GameFontHighlightSmall")
     w.adQueue = Label(C1, y - 20, "", nil, 300)
@@ -6078,6 +6121,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             end
         end
     elseif cmd == "ad" then PostAd()
+    elseif cmd == "macro" then Jobs.WriteAdMacro(true)
     elseif cmd == "preview" then
         local want = rest:lower()
         local tab = (setupWin and setupWin.tab and PV.TABS[setupWin.tab]) or "General"

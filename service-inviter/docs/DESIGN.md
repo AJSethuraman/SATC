@@ -463,3 +463,12 @@ the game uses, so one press is one ad. That suspension line also turns ads off.
 The owner: *"ok prove this works by letting me post it in guild"*. Advertise has "Post to guild
 instead, to try it": every press runs `/g <ad>` through the same macro button, with no wait and no
 ad counted, and when the line comes back in guild chat the addon says so in green.
+
+## 3.9.12: the SI Ad macro (15 Nov 2026)
+
+The owner, of the macro button: *"yeah nothing it is not working"* (no line at all, not even the
+suspension notice, so the button never sent anything). Earlier: *"a regular macro can do this"*.
+"Make SI Ad macro" (Advertise, or `/si macro`) makes a real per-character macro called SI Ad and,
+out of combat, keeps it filled with `/<channel> <ad>` for the next channel that's ready. It counts
+when your line shows up in the channel, and then moves on to the next. With debug on, the ad
+buttons now print each half of a press and what they handed the game, to find out why they don't.

@@ -202,3 +202,35 @@ def test_try_it_in_guild():
     assert g.eval("ServiceInviter_Test.Stats().ads or 0") == 0   # a try isn't an ad
     g.run("S.checks.adguild:SetChecked(false) S.Save()")
     assert press(g).startswith("/1 ")
+
+
+MACROS = '''MACRO_LIST = {}
+function GetMacroIndexByName(n) for i, m in ipairs(MACRO_LIST) do if m.name == n then return i end end return 0 end
+function CreateMacro(n, icon, body, perChar) MACRO_LIST[#MACRO_LIST + 1] = { name = n, body = body, char = perChar } return #MACRO_LIST end
+function EditMacro(i, n, icon, body) MACRO_LIST[i].body = body return i end'''
+
+
+def test_the_si_ad_macro_holds_the_next_ad_and_moves_on_when_it_posts():
+    """The owner, 15 Nov 2026: "yeah nothing it is not working", of the button, and earlier "a
+    regular macro can do this". So the addon writes the ad into a real macro of yours."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    assert g.eval("#MACRO_LIST") == 1 and g.eval("MACRO_LIST[1].name") == "SI Ad"
+    body = g.eval("MACRO_LIST[1].body")
+    assert body.startswith("/1 ") and "35" in body
+    assert any("Made a macro called" in p for p in g.printed())
+    # you press it: the game posts it, and your line shows up in General
+    g.event("CHAT_MSG_CHANNEL", body[3:], "Me", "", "1. General - Thunder Bluff", "", "", "", "", "General - Thunder Bluff")
+    g.run("ServiceInviter_Test.Tick(1)")
+    assert g.eval("MACRO_LIST[1].body").startswith("/2 ")   # next channel
+    assert g.eval("ServiceInviter_Test.Stats().ads") == 1
+    g.run("ServiceInviter_Test.Tick(1)")
+    assert g.eval("#MACRO_LIST") == 1                        # made once, then only edited
+
+
+def test_the_macro_is_left_alone_until_you_ask_for_it():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run("ServiceInviter_Test.Tick(1)")
+    assert g.eval("#MACRO_LIST") == 0
