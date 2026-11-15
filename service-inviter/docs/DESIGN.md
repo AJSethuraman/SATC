@@ -565,3 +565,11 @@ macro or an addon sends exactly what it holds, and a lone `| ` is a broken code,
 the whole line without a word. That is most likely why no ad ever posted from the addon: the
 button, `/si ad`, and the SI Ad macro. `Jobs.ChatSafe` doubles every bar in every line we send
 (ads, macro text, whispers, party and raid lines), leaving doubled ones alone.
+
+## 3.9.23: the UI button stands on its own (15 Nov 2026)
+
+The owner: *"was this always the issue???? i want to go back to being able to press it from the UI
+instead of making an updating macro"*. The default ad has carried the bar since 2.0 (12 Nov), so
+very likely yes. The ad buttons no longer use the SI Ad macro (3.9.20 undone): each press runs its
+own `/<channel> <ad>` with the bar doubled. The SI Ad macro still works if you keep it; nothing
+needs it.

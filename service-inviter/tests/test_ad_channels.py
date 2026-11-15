@@ -285,19 +285,6 @@ def test_a_raid_join_is_not_the_reason_an_ad_failed():
     assert "didn't show up" in said and "Trukt Hunt" not in said
 
 
-def test_with_the_si_ad_macro_the_button_runs_it():
-    """The owner, 15 Nov 2026: "but it didnt show in guild chat at all?" -- the button's own macro
-    text never ran on their client; the SI Ad macro did."""
-    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
-    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.run('SlashCmdList.SERVICEINVITER("macro")')
-    g.run('local b = ServiceInviterAdButton b:GetScript("PreClick")(b)')
-    assert g.eval('ServiceInviterAdButton:GetAttribute("type")') == "macro"
-    assert g.eval('ServiceInviterAdButton:GetAttribute("macro")') == 1
-    assert g.eval('ServiceInviterAdButton:GetAttribute("macrotext")') is None
-    assert g.eval("MACRO_LIST[1].body").startswith("/1 ")
-
-
 def test_every_bar_we_send_is_doubled_or_the_game_drops_the_line():
     """The owner, 15 Nov 2026: "ok the macro is straight up not working, it will not go into guild
     chat no matter how many times i press it ... it's just typing in the game - something we already
@@ -315,3 +302,15 @@ def test_every_bar_we_send_is_doubled_or_the_game_drops_the_line():
     # whispers and party lines too
     g.run('ServiceInviter_Test.Jobs.Send("hi | there", "WHISPER", "Kaldrok")')
     assert g.sent()[-1][2] == "hi || there"
+
+
+
+def test_the_ui_button_posts_on_its_own_even_with_an_si_ad_macro():
+    """The owner, 15 Nov 2026: "i want to go back to being able to press it from the UI instead of
+    making an updating macro"."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS + "\n" + MACROS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run('SlashCmdList.SERVICEINVITER("macro")')
+    m = press(g)
+    assert m.startswith("/1 ") and "|| whisper inv" in m
+    assert g.eval('ServiceInviterAdButton:GetAttribute("macro")') is None
