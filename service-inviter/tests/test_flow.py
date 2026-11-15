@@ -134,3 +134,14 @@ def test_the_point_of_contact_raid_warns_a_regular_and_a_non_payer():
     assert me.sent() == []                                   # only the point of contact
     warned = [m for ch, _, m in bone.sent() if ch == "RAID_WARNING"]
     assert any("Welcome back Kaldrok" in m for m in warned) and any("Sneaky" in m for m in warned)
+
+
+def test_the_point_of_contact_invites_someone_i_invited_by_hand():
+    """The owner, 15 Nov 2026: "it is not actually inviting them but the addon says it is in the
+    queue" -- a muted character's invite to a stranger doesn't go through."""
+    me, bone = team()
+    me.run('ServiceInviterDB.opts.enabled = false')
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    me.run('C_PartyInfo.InviteUnit("Kaldrok")')
+    pump(me, bone, "Me")
+    assert "Kaldrok" in list(bone.g.INVITED.values())

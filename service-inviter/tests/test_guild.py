@@ -183,3 +183,37 @@ def test_a_big_book_is_sent_once_even_when_asked_again_mid_way():
     n = bone.eval('(function() local n = 0 for _ in pairs(ServiceInviterDB.teambooks["Me"].customers) do n = n + 1 end return n end)()')
     assert n == 300
     assert any("got Me's customer book: 300 customers" in p for p in bone.printed())
+
+
+def test_lines_dropped_on_the_way_are_asked_for_again_and_filled_in():
+    """The owner, 15 Nov 2026: "it still doesnt seem to be transmitting the list very well". The
+    game drops some addon messages; the old END told the receiver it had everything anyway."""
+    me = guild_world({"player": ME})
+    me.run('ServiceInviterDB.customers = {} for i = 1, 300 do ServiceInviterDB.customers["Buyer" .. i] = '
+           '{ n = 1, by = { summons = 1 }, worth = 35, first = i, last = i, to = { ["Thunder Bluff"] = 1 } } end')
+    bone = guild_world({"player": BONE})
+    for g in (me, bone):
+        g.run("ServiceInviter_Test.Jobs.SayHi(true)")
+    pump(me, bone, "Me")
+    pump(bone, me, "Bone Charms")
+    me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
+    lines = me.eval("#ServiceInviter_Test.Jobs.outbox")
+    assert lines < 120                                  # several customers to a line, not 300
+    me.run("while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+    me.run("table.remove(ADDON_OUT, 20) table.remove(ADDON_OUT, 50)")    # two lines lost on the way
+    pump(me, bone, "Me")
+    count = 'local n = 0 for _ in pairs(ServiceInviterDB.teambooks["Me"].customers) do n = n + 1 end return n'
+    assert bone.eval(f"(function() {count} end)()") < 300
+    assert "didn't arrive: asked again" in teamlog(bone)
+    pump(bone, me, "Bone Charms")                       # his WANT from the gap
+    drain(me, bone, "Me", rounds=6)
+    assert bone.eval(f"(function() {count} end)()") == 300
+    assert any("got Me's customer book: 300 customers" in p for p in bone.printed())
+
+
+def test_posting_an_ad_pauses_the_background_lines():
+    """Your ad first (the owner, 15 Nov 2026: "it says we are rate limited but no messages are
+    actually going through")."""
+    me = guild_world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")})
+    me.run('ServiceInviterDB.role = "lock" ServiceInviter_Test.PostAd()')
+    assert me.eval("ServiceInviter_Test.Jobs.outWait") >= me.eval("CLOCK") + 2

@@ -410,3 +410,18 @@ General, your other channels), each on its own: Trade - English 50 and Trade - E
 (before, only the first Trade channel ever got it). The Advertise tab shows a switch per channel;
 a switched-off channel is remembered by name (`adskip`). Each press posts in the next channel
 whose wait is over. An old "General off" from before 3.9 still holds.
+
+## 3.9.5: less traffic, and nothing lost (15 Nov 2026)
+
+The owner: *"it still doesnt seem to be transmitting the list very well"*, *"the trade spam is
+straight up not working, it says we are rate limited"*, and *"it is not actually inviting them but
+the addon says it is in the queue"*.
+
+- **Customers go several to a line** (`CB`), so a 310-customer book is about 95 lines, sent one a
+  second, and posting an ad pauses them for a few seconds. The game limits how much a character
+  sends in all; the book was crowding out the ads.
+- **Numbered lines.** END says how many; a receiver with a gap asks again from the gap (WANT since
+  the change before it) and keeps what arrived. A re-ask covered by the send already going out is
+  dropped, so a book never goes out twice over.
+- **A hand invite from a teammate is invited by the point of contact too**: a muted character's
+  invite to a stranger doesn't go through, and the addon only sees that it was asked for.

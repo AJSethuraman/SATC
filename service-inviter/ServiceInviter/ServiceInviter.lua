@@ -1,4 +1,4 @@
--- Service Inviter v3.9.4
+-- Service Inviter v3.9.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2035,6 +2035,7 @@ local function PostAd()
     -- the ad counts once it shows up in the channel (Jobs.AdSeen); a few seconds without it and
     -- the press didn't post (Jobs.AdCheck)
     Jobs.adPending = { key = key, name = name, text = text, t = now }
+    Jobs.outWait = math.max(Jobs.outWait or 0, now + 3)   -- your ad first: the team's background lines wait a moment
     D("ad sent to " .. tostring(name) .. ", waiting to see it in the channel")
     if RefreshJobs then RefreshJobs() end
 end
@@ -3011,7 +3012,7 @@ function Jobs.TeamWords(msg)
         return (f[3] or "?") .. " invited " .. (f[2] or "?")
     elseif f[1] == "WANT" then
         return "asking " .. (f[2] or "?") .. " for their book since change " .. (f[3] or "?")
-    elseif (f[1] == "C" or f[1] == "S" or f[1] == "A") and f[2] == "starting" then
+    elseif (f[1] == "C" or f[1] == "CB" or f[1] == "S" or f[1] == "A") and f[2] == "starting" then
         return "customer book: sending started"
     elseif f[1] == "SET" and f[2] == "starting" then
         return "setup: sending started"
@@ -3042,7 +3043,7 @@ function Jobs.TeamLog(dir, who, msg, note)
     -- the log keeps the hand-offs and invites you look for (the owner, 14 Nov 2026: "how can i see
     -- the addons communicate so i can tell when they do / don't")
     local kind = tostring(msg):match("^(%u+)")
-    if kind == "C" or kind == "S" or kind == "A" or kind == "SET" then
+    if kind == "C" or kind == "CB" or kind == "S" or kind == "A" or kind == "SET" then
         Jobs.syncCount = Jobs.syncCount or {}
         local key = dir .. who .. kind
         Jobs.syncCount[key] = (Jobs.syncCount[key] or 0) + 1
@@ -3387,6 +3388,10 @@ function Jobs.HearManual(f, who)
     if f[4] and f[4] ~= "" then j.dest = f[4] end
     if tonumber(f[5]) then j.price = tonumber(f[5]) end
     Jobs.Pending(buyer)
+    -- the teammate's own invite may not go through (a muted character can't invite strangers), so
+    -- the point of contact invites too; if theirs did, the game just says they're already invited
+    -- (the owner, 15 Nov 2026: "it is not actually inviting them but the addon says it is in the queue")
+    if not Jobs.InGroup(buyer) and not (ServiceInviterDB.dryrun) then DoInvite(buyer) end
     if Jobs.QuoteNow(j) then return "whispered " .. buyer .. " the welcome and price" end
     return "will welcome " .. buyer .. (j.service and (" (" .. j.service .. (j.dest and (" to " .. j.dest) or "") .. ")") or "")
 end
@@ -3516,37 +3521,58 @@ local function Unpairs(s, numkeys)
     return t
 end
 -- What changed in your book since `since`, a line each, oldest first, then END.
+-- Customers go several to a line (CB: records split by \30, fields by \31), so a 310-customer
+-- book is about a hundred lines, not three hundred: the game limits how much one character sends
+-- in all, and a flood of these was crowding out the ads (the owner, 15 Nov 2026: "the trade spam
+-- is straight up not working, it says we are rate limited"). Every line carries its number (last
+-- field) and END says how many, so a dropped line is asked for again from where the gap starts.
+Jobs.REC, Jobs.FLD = "\30", "\31"
 function Jobs.BookLines(since)
-    local db, out = ServiceInviterDB, {}
+    local db, items = ServiceInviterDB, {}
     local rev = Jobs.BookRev()
     for name, c in pairs(type(db.customers) == "table" and db.customers or {}) do
         if (c.rev or 0) > since then
-            out[#out + 1] = { c.rev, { "C", c.rev, name, c.n or 0, c.worth or 0, c.first or 0, c.last or 0, Pairs(c.by), Pairs(c.to) } }
+            items[#items + 1] = { c.rev, "c", table.concat({ c.rev, name, c.n or 0, c.worth or 0, c.first or 0, c.last or 0, Pairs(c.by), Pairs(c.to) }, Jobs.FLD) }
         end
     end
     for name, e in pairs(type(db.scammers) == "table" and db.scammers or {}) do
         if (e.rev or 0) > since then
-            out[#out + 1] = { e.rev, { "S", e.rev, name, e.n or 0, e.owed or 0, e.last or 0, e.cleared or "" } }
+            items[#items + 1] = { e.rev, "line", { "S", e.rev, name, e.n or 0, e.owed or 0, e.last or 0, e.cleared or "" } }
         end
     end
     local a = db.analytics
     if type(a) == "table" and (a.rev or 0) > since then
         local nm = type(a.near) == "table" and a.near or { n = 0, worth = 0 }
         local r = a.rev
-        out[#out + 1] = { r, { "A", r, "base", (a.n or 0) .. "|" .. (a.worth or 0) .. "|" .. (a.since or 0) .. "|" .. (nm.n or 0) .. "|" .. (nm.worth or 0) } }
-        for _, part in ipairs({ "to", "by", "hour", "day" }) do out[#out + 1] = { r, { "A", r, part, Pairs(a[part]) } } end
-        out[#out + 1] = { r, { "A", r, "nwhy", Pairs(nm.why) } }
-        out[#out + 1] = { r, { "A", r, "nto", Pairs(nm.to) } }
+        items[#items + 1] = { r, "line", { "A", r, "base", (a.n or 0) .. "|" .. (a.worth or 0) .. "|" .. (a.since or 0) .. "|" .. (nm.n or 0) .. "|" .. (nm.worth or 0) } }
+        for _, part in ipairs({ "to", "by", "hour", "day" }) do items[#items + 1] = { r, "line", { "A", r, part, Pairs(a[part]) } } end
+        items[#items + 1] = { r, "line", { "A", r, "nwhy", Pairs(nm.why) } }
+        items[#items + 1] = { r, "line", { "A", r, "nto", Pairs(nm.to) } }
     end
-    table.sort(out, function(x, y) return x[1] < y[1] end)
-    local lines = {}
-    for _, e in ipairs(out) do lines[#lines + 1] = e[2] end
-    lines[#lines + 1] = { "END", rev }
+    table.sort(items, function(x, y) return x[1] < y[1] end)
+    local lines, pack, packRev = {}, {}, 0
+    local function flush()
+        if #pack > 0 then lines[#lines + 1] = { "CB", packRev, table.concat(pack, Jobs.REC) } pack, packRev = {}, 0 end
+    end
+    local size = 0
+    for _, it in ipairs(items) do
+        if it[2] == "c" then
+            if #pack > 0 and size + #it[3] + 1 > 200 then flush() size = 0 end
+            pack[#pack + 1] = it[3] size = size + #it[3] + 1
+            packRev = math.max(packRev, it[1])
+        else
+            flush() size = 0
+            lines[#lines + 1] = it[3]
+        end
+    end
+    flush()
+    for i, l in ipairs(lines) do l[#l + 1] = i end
+    lines[#lines + 1] = { "END", rev, #lines }
     return lines
 end
 -- Lines go out a few a second: the game drops addon messages sent faster than that.
 Jobs.outbox = {}
-Jobs.OUT_EVERY = 0.5
+Jobs.OUT_EVERY = 1
 function Jobs.Drain()
     local item = Jobs.outbox[1]
     if not item then return end
@@ -3563,21 +3589,67 @@ function Jobs.BookHear(kind, f, who, me)
     if kind == "WANT" then
         if not f[2] or f[2]:lower() ~= me:lower() then Jobs.bookNote = "ignored: meant for " .. tostring(f[2]) return true end
         local since = tonumber(f[3]) or 0
+        -- already covered by the send going out now: nothing more to queue
+        if Jobs.bookSending and since >= (Jobs.bookSendingSince or 0) then
+            Jobs.bookNote = "already sending my book since change " .. (Jobs.bookSendingSince or 0)
+            return true
+        end
         if Jobs.wantSince == nil or since < Jobs.wantSince then Jobs.wantSince = since end
         Jobs.wantAt = Jobs.wantAt or GetTime()   -- answered in 2s, once for everyone who asked
         Jobs.bookNote = "sending my book since change " .. since
         return true
     end
-    if kind ~= "C" and kind ~= "S" and kind ~= "A" and kind ~= "END" then return false end
+    if kind ~= "C" and kind ~= "CB" and kind ~= "S" and kind ~= "A" and kind ~= "END" then return false end
     local b = Jobs.TeamBook(who)
+    -- which numbered lines of this send have arrived
+    Jobs.Team.recv = Jobs.Team.recv or {}
+    if kind ~= "END" then
+        local seq = tonumber(f[#f])
+        if seq then
+            if seq == 1 or not Jobs.Team.recv[who] then Jobs.Team.recv[who] = { got = {}, rev = {} } end
+            Jobs.Team.recv[who].got[seq] = true
+            Jobs.Team.recv[who].rev[seq] = tonumber(f[2]) or 0
+        end
+    end
     if kind == "END" then
-        local r = tonumber(f[2]) or 0
+        local r, n = tonumber(f[2]) or 0, tonumber(f[3])
+        local batch = Jobs.Team.recv[who]
+        if n and batch then
+            local missing
+            for i = 1, n do if not batch.got[i] then missing = i break end end
+            Jobs.Team.recv[who] = nil
+            if missing then
+                -- keep what arrived; ask again from the first gap
+                local upTo = missing > 1 and ((batch.rev[missing - 1] or 1) - 1) or (b.rev or 0)
+                if upTo > (b.rev or 0) then b.rev = upTo end
+                Jobs.Team.asked = Jobs.Team.asked or {}
+                Jobs.Team.asked[who] = { t = GetTime(), rev = r }
+                Jobs.TeamSend(true, "WANT", who, b.rev or 0)
+                Jobs.bookNote = "line " .. missing .. " of " .. n .. " didn't arrive: asked again from change " .. (b.rev or 0)
+                return true
+            end
+        end
         if r > (b.rev or 0) then b.rev = r end
         Jobs.bookNote = "their book is up to date (change " .. r .. ")"
         local n = 0
         for _ in pairs(b.customers or {}) do n = n + 1 end
         if not b.toldDone then b.toldDone = true P("got " .. who .. "'s customer book: " .. n .. " customers") end
         if Jobs.team_refresh then Jobs.team_refresh() end
+        return true
+    end
+    if kind == "CB" then
+        if not b.toldStart then b.toldStart = true P("receiving " .. who .. "'s customer book (this can take a few minutes)") end
+        local n = 0
+        for rec in tostring(f[3] or ""):gmatch("[^" .. Jobs.REC .. "]+") do
+            local x = {}
+            for part in (rec .. Jobs.FLD):gmatch("(.-)" .. Jobs.FLD) do x[#x + 1] = part end
+            if x[2] and x[2] ~= "" then
+                b.customers[x[2]] = { n = tonumber(x[3]) or 0, worth = tonumber(x[4]) or 0, first = tonumber(x[5]), last = tonumber(x[6]),
+                    by = Unpairs(x[7]), to = Unpairs(x[8]) }
+                n = n + 1
+            end
+        end
+        Jobs.bookNote = "saved " .. n .. " of their customers"
         return true
     end
     if tonumber(f[2]) and tonumber(f[2]) <= (b.rev or 0) then Jobs.bookNote = "already have it" return true end
@@ -3621,7 +3693,7 @@ function Jobs.BookTick()
     if Jobs.wantAt and GetTime() - Jobs.wantAt >= 2 and not Jobs.bookSending then
         local lines = Jobs.BookLines(Jobs.wantSince or 0)
         for _, l in ipairs(lines) do Jobs.outbox[#Jobs.outbox + 1] = l end
-        Jobs.bookSending = true
+        Jobs.bookSending, Jobs.bookSendingSince = true, Jobs.wantSince or 0
         local n = #lines - 1
         if n > 20 then P("sending your customer book to the team: " .. n .. " lines, about " .. math.ceil(n * Jobs.OUT_EVERY / 60 + 0.5) .. " min") end
         Jobs.wantAt, Jobs.wantSince = nil, nil
