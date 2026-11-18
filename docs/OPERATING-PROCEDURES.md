@@ -545,7 +545,7 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `spent`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `hourly`, `forms`, `check`, `sample`
+`package`, `payments`, `invoice`, `reissue`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `spent`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `hourly`, `forms`, `check`, `sample`
 
 ## Appendix — every template, and the procedure it belongs to
 
@@ -572,7 +572,7 @@ from `packaging.PACKS`, `packaging.CONDITIONAL` and
 | Extension Notice | When the return needs an extension |
 | Organizer Cover Letter | When you send the organizer |
 
-12 template file(s) examined against 11 document(s) named by a procedure.
+13 template file(s) examined against 11 document(s) named by a procedure.
 
 **Templates that belong to no procedure yet.** Reported rather
 than hidden: a finished letter with no process behind it is work
@@ -580,4 +580,5 @@ waiting on a decision, and a document nobody can reach is the
 same as one that does not exist.
 
 - `SATC Engagement Letter - Bookkeeping.html`
+- `SATC Re-issue Email.html`
 

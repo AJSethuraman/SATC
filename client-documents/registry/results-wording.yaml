@@ -1,0 +1,20 @@
+# How a return's result reads in a client email -- the re-issue email's
+# "updated summary" and its "Before / Now" lines.
+#
+# WORDING IS DATA (DOCUMENT-TENETS T28): change a word here and every email
+# follows. `reissue.py` only fills the {amount} and {account} slots.
+# The form matches the delivery: return, refund or balance due, and how it is
+# paid or received.
+
+summary:
+  refund_deposit:     "{amount} refund, by direct deposit to the account ending {account}"
+  refund_check:       "{amount} refund, by check"
+  balance_check:      "{amount} balance due, by check"
+  balance_withdrawal: "{amount} balance due, withdrawn from the account ending {account}"
+  nothing:            "nothing due"
+
+# The short form, for "Before: ... Now: ..." under What changed.
+short:
+  refund:  "{amount} refund"
+  balance: "{amount} balance due"
+  nothing: "nothing due"

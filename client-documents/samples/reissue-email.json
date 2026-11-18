@@ -1,0 +1,58 @@
+{
+  "_comment": "Invented. The example payload in FIELDS - Re-issue Email.md, produced by reissue.build() from samples/reissue-changes.json.",
+  "TaxYear": "2026",
+  "ContactFirstName": "Daniel",
+  "IssueRaised": "the early-withdrawal penalty question",
+  "FreehandNote": "",
+  "FilingDeadline": "October 15, 2027",
+  "PreparerFirstName": "Arjun",
+  "ResultChanges": [
+    {
+      "Return": "Federal",
+      "Reason": "The 10% early-withdrawal penalty no longer applies, because the distribution qualifies for an exception.",
+      "Before": "$220 refund",
+      "After": "$520 refund"
+    }
+  ],
+  "OtherChanges": [
+    {
+      "Label": "Form 8801",
+      "Detail": "The prior-year minimum tax credit carryforward was entered from the wrong year. It's now correct, and it doesn't change this year's tax."
+    }
+  ],
+  "ReturnsDelivered": [
+    {
+      "Return": "Federal",
+      "Detail": "$520 refund, by direct deposit to the account ending 4417"
+    },
+    {
+      "Return": "Ohio",
+      "Detail": "$640 refund, by direct deposit to the account ending 4417"
+    },
+    {
+      "Return": "Solon",
+      "Detail": "nothing due"
+    },
+    {
+      "Return": "RITA",
+      "Detail": "$85 balance due, by check"
+    }
+  ],
+  "ChecksDue": [
+    {
+      "Amount": "$85",
+      "PayTo": "RITA",
+      "DueDate": "October 15, 2027"
+    }
+  ],
+  "WithdrawalsDue": [],
+  "RaisedAndRight": true,
+  "RaisedAndNotRight": false,
+  "NotRaised": false,
+  "AlsoUpdated": true,
+  "FreehandExplanation": false,
+  "ResignBoth": true,
+  "ResignOne": false,
+  "SignIfNotYetBoth": false,
+  "SignIfNotYetOne": false
+}

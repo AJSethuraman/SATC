@@ -72,7 +72,23 @@ def test_the_firm_block_reaches_every_document_from_settings_alone():
                          website="satcgroup.example")
     record = firm.firm_fields("2026", settings=moved)
 
+    # AN EMAIL HAS NO MASTHEAD. The re-issue email is signed with the
+    # preparer's first name like the firm's other client emails, so the firm
+    # block is not in it -- but nothing firm-specific may be typed into it
+    # either, and the sign-off must follow the settings.
+    emails = {"reissue-email"}
+    moved["preparer"] = dict(moved["preparer"], first_name="Jordan")
+    record = firm.firm_fields("2026", settings=moved)
+    for name in emails:
+        template = (cli.TEMPLATE_DIR / TEMPLATES[name]).read_text(encoding="utf-8")
+        html = merge.render(template, record, strict=False).html
+        assert "Thanks,<br/>Jordan" in html, f"{name}: the sign-off did not follow"
+        for typed in ("6544 Copley", "SAT-C LLP", "Arjun", "satcllp.com"):
+            assert typed not in html, f"{name}: {typed!r} is typed into the template"
+
     for name, filename in TEMPLATES.items():
+        if name in emails:
+            continue
         template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
         html = merge.render(template, record, strict=False).html
         assert "SATC Group LLP" in html, f"{name}: the firm name did not follow"

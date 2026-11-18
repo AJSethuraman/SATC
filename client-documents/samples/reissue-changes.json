@@ -1,0 +1,31 @@
+{
+  "_note": "Invented. The input to `python cli.py reissue`: the results summary as it went out, the summary now, and why each change was made. Figures from Drake's results table and return summary.",
+  "filing_deadline": "October 15, 2027",
+  "client_raised": "the early-withdrawal penalty question",
+  "client_was_right": true,
+  "freehand": "",
+  "before": {
+    "federal": {"total_income": 118400, "agi": 112900, "total_tax": 9120, "withholding": 9340},
+    "returns": [
+      {"return": "Federal", "result": "refund", "amount": 220, "method": "direct deposit", "account": "4417"},
+      {"return": "Ohio", "result": "refund", "amount": 640, "method": "direct deposit", "account": "4417"},
+      {"return": "Solon", "result": "none"},
+      {"return": "RITA", "result": "balance", "amount": 85, "method": "check", "pay_to": "RITA", "due_date": "October 15, 2027"}
+    ]
+  },
+  "after": {
+    "federal": {"total_income": 118400, "agi": 112900, "total_tax": 8820, "withholding": 9340},
+    "returns": [
+      {"return": "Federal", "result": "refund", "amount": 520, "method": "direct deposit", "account": "4417"},
+      {"return": "Ohio", "result": "refund", "amount": 640, "method": "direct deposit", "account": "4417"},
+      {"return": "Solon", "result": "none"},
+      {"return": "RITA", "result": "balance", "amount": 85, "method": "check", "pay_to": "RITA", "due_date": "October 15, 2027"}
+    ]
+  },
+  "reasons": {
+    "Federal": "The 10% early-withdrawal penalty no longer applies, because the distribution qualifies for an exception."
+  },
+  "other_changes": [
+    {"label": "Form 8801", "detail": "The prior-year minimum tax credit carryforward was entered from the wrong year. It's now correct, and it doesn't change this year's tax."}
+  ]
+}

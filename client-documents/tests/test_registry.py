@@ -40,6 +40,7 @@ TEMPLATES = {
     "extension-notice": "SATC Extension Notice.html",
     "disengagement-letter": "SATC Disengagement Letter.html",
     "records-release": "SATC Records Release Authorization.html",
+    "reissue-email": "SATC Re-issue Email.html",
 }
 
 
