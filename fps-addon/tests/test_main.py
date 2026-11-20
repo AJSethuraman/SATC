@@ -761,3 +761,41 @@ def test_cursor_movement_on_the_end_screen_does_not_turn_you_when_play_resumes()
     a0 = w.player.ang
     tick(lua, 3)
     assert w.player.ang == pytest.approx(a0)
+
+
+POS_ONLY = REAL_LOOK + """
+function GetPlayerFacing() return nil end
+function GetCursorDelta() return 0, 0 end
+"""
+
+
+def test_a_client_that_only_moves_the_reported_cursor_position_still_turns_you_and_the_readings_line_shows():
+    lua, ns, G = start(POS_ONLY)
+    tick(lua, 1)
+    # facing is nil here, so mouselook is not used: the cursor-follow fallback must still turn the view
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    a0 = w.player.ang
+    lua.execute("CURSOR[1] = 500 + 100")
+    tick(lua, 1)
+    assert w.player.ang - a0 == pytest.approx(100 * 0.0035)
+
+
+READINGS = REAL_LOOK + """
+function GetCursorDelta() return 0, 0 end
+"""
+
+
+def test_while_locked_the_view_turns_from_the_cursor_position_when_nothing_else_moves_and_a_readings_line_is_shown():
+    lua, ns, G = start(READINGS)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("CURSOR[1] = 500 + 80")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(80 * 0.0035)
+    tick(lua, 1)                                                   # the line is written at the start of a frame, so it shows the last frame's counts
+    line = str(ns.Main.render().dbg.text)
+    assert "facing" in line and "locked true" in line and "cursor 580.000" in line and "cursor 1" in line
+    slash(lua, "mouse debug")
+    tick(lua, 1)
+    assert str(ns.Main.render().dbg.text) == ""
