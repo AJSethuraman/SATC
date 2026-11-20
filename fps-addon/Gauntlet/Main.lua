@@ -234,7 +234,8 @@ end
 ---------------------------------------------------------------- the clock
 -- True mouse look: the client's own mouselook turns the player with the mouse; the change in GetPlayerFacing each frame is how far
 -- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
-local function look_on() return Main.mouse and Main.look and MouselookStart and GetPlayerFacing end
+-- Instances hide the facing (it comes back nil), so look only when a value is really available.
+local function look_on() return Main.mouse and Main.look and MouselookStart and GetPlayerFacing and GetPlayerFacing() ~= nil end
 
 local function look_turn()
   local f = GetPlayerFacing()
@@ -271,7 +272,7 @@ local function play_frame(dt)
   local side = (k.D and 1 or 0) - (k.A and 1 or 0)
   local turn = (k.E and 1 or 0) - (k.Q and 1 or 0) + (k.RIGHT and 1 or 0) - (k.LEFT and 1 or 0)
   p.ang = p.ang + turn * KEYTURN * dt
-  if look_on() then mouselook(true); p.ang = p.ang + look_turn() else p.ang = p.ang + mouse_turn() * dt end
+  if look_on() then mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); p.ang = p.ang + mouse_turn() * dt end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
   local held = G.mouse_down or (G.looking and IsMouseButtonDown and IsMouseButtonDown("LeftButton"))

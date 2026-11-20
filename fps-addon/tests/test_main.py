@@ -556,3 +556,14 @@ def test_mouse_look_off_falls_back_to_the_cursor_and_never_starts_mouselook():
     slash(lua, "mouse edge")
     tick(lua, 3)
     assert lua.eval("LOOKING") is False
+
+
+def test_when_the_client_hides_your_facing_the_cursor_turn_takes_over_and_mouselook_lets_go():
+    lua, ns, G = start(LOOK)
+    tick(lua, 2)
+    assert lua.eval("LOOKING") is True
+    lua.execute("GetPlayerFacing = function() return nil end")      # inside an instance
+    lua.execute("GetCursorPosition = function() return 0, 0 end")
+    a0 = G.w.player.ang
+    tick(lua, 3)
+    assert lua.eval("LOOKING") is False                              # the cursor is back, not stuck hidden
