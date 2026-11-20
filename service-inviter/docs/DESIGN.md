@@ -612,3 +612,13 @@ point of contact is offered on their list the same way (BUY carries whether it c
 whisper). General has "Auto-invite channel buyers", off, to put the old way back; it travels with
 Send my setup. The tests written before this run with it on (`tests/conftest.py`), and
 `tests/test_whisper_only.py` covers the default.
+
+## 3.9.27: Setup is never locked in combat (20 Nov 2026)
+
+The owner's screenshot: General and Advertise drawn over each other, and "error in game blocked
+ServiceInviterSetupAdPost:Disable()", "ServiceInviterSetup:StartMoving() ... Hide() was blocked".
+3.9.9 made Setup's Post ad a secure button; one secure child makes the whole window protected, so
+in combat the game refused to hide it, move it or switch its tabs. It is a plain button again that
+sends the ad on click (a click is enough; the bar was the real block, 3.9.22). The main window's
+ad button stays secure, as that window already is. A test checks Setup's button carries no secure
+template, with the main window's as the control.

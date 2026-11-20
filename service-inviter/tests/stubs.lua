@@ -40,7 +40,7 @@ local function Stub()
   end })
 end
 FRAMES = {}
-function CreateFrame(kind, name) local f = Stub() FRAMES[#FRAMES + 1] = f if name then _G[name] = f end return f end
+function CreateFrame(kind, name, parent, template) local f = Stub() f._template = template FRAMES[#FRAMES + 1] = f if name then _G[name] = f end return f end
 UIParent = Stub() UIParent.GetWidth = function() return 1920 end UIParent.GetHeight = function() return 1080 end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) PRINTED[#PRINTED + 1] = m end }
 PRINTED = {}

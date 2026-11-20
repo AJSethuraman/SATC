@@ -1,4 +1,4 @@
--- Service Inviter v3.9.26
+-- Service Inviter v3.9.27
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -5988,9 +5988,13 @@ local function BuildSetupUI()
     Label(C1, y - 6, "Wait") Box("adwait", C1 + FW - 150, y, 56, 3, "5") Label(C1 + FW - 88, y - 7, "min / channel", "GameFontHighlightSmall")
     y = y - ROW - 12
     Header(C1, y, "Post", FW) y = y - 30
-    local post = Jobs.AdButton(FlatButton(page, 220, 44, "gold", 15, true, "ServiceInviterSetupAdPost"))
+    -- a plain button: a protected (secure) one makes the whole Setup window protected, so in combat
+    -- the game blocks hiding it, moving it and switching its tabs (the owner's screenshot, 20 Nov
+    -- 2026: two tabs drawn over each other and "...SetupAdPost:Disable() was blocked"). A click is
+    -- enough for the game to send the ad; what kept it from going out was the bar (3.9.22).
+    local post = FlatButton(page, 220, 44, "gold", 15, nil, "ServiceInviterSetupAdPost")
     post:SetPoint("TOPLEFT", C1, y) post:SetText("Post ad")
-    post:SetScript("PreClick", function(self, _, down) if Jobs.AdHalf(down) then w.Save() Jobs.AdPress(self) w.Load() end end)
+    post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
     Jobs.Tip(post, "The game sends an ad only on a key press or click: one press, one ad")
     w.adpost = post
     local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")

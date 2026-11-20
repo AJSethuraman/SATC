@@ -119,9 +119,14 @@ def test_the_ad_button_is_a_macro_like_your_own():
 def test_the_main_window_and_setup_buttons_are_macros_too():
     g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
     g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
-    g.run("ServiceInviter_Test.Refresh() S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() W = ServiceInviterJobs.adBtn P2 = S.adpost")
+    g.run("ServiceInviter_Test.Refresh() S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() W = ServiceInviterJobs.adBtn")
     assert press(g, "W").startswith("/1 ")
-    assert press(g, "P2").startswith("/2 ")
+    # Setup's button is a plain one that sends the ad itself (a secure one locked the whole window
+    # in combat: the owner's screenshot, 20 Nov 2026)
+    assert g.eval("rawget(S.adpost, \"_template\")") is None
+    assert g.eval("rawget(ServiceInviterJobs.adBtn, \"_template\")") == "SecureActionButtonTemplate"   # control: the check can see one
+    g.run("S.adpost:GetScript('OnClick')(S.adpost)")
+    assert [to for ch, to, m in g.sent() if ch == "CHANNEL"] == [2]
 
 
 
