@@ -32,6 +32,7 @@ local function obj(kind, name)
     if k == "IsShown" then return function(self) return self.shown end end
     if k == "SetText" then return function(self, s) self.text = s end end
     if k == "SetAlpha" then return function(self, a) self.alpha = a end end
+    if k == "SetFrameStrata" then return function(self, v) self.strata = v end end
     if k == "SetFrameLevel" then return function(self, l) self.level = l end end
     if k == "GetFrameLevel" then return function(self) return self.level end end
     if k == "GetEffectiveScale" then return function() return 1 end end

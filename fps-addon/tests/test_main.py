@@ -799,3 +799,24 @@ def test_while_locked_the_view_turns_from_the_cursor_position_when_nothing_else_
     slash(lua, "mouse debug")
     tick(lua, 1)
     assert str(ns.Main.render().dbg.text) == ""
+
+
+def test_turns_still_count_when_the_client_says_it_is_not_locked_so_the_lock_is_restarted_every_frame():
+    lua, ns, G = start(REAL_LOOK + "function IsMouselooking() return false end")
+    slash(lua, "mouse look")
+    tick(lua, 3)
+    a0 = G.w.player.ang
+    for i in range(5):
+        lua.execute("FACING = FACING - 0.05")
+        tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(0.25)                 # a restart each frame must not throw the turn away
+    assert G.run.mouse.restarts >= 5
+    assert "restarts" in str(ns.Main.render().dbg.text)
+
+
+def test_the_catcher_is_solid_black_and_under_the_game_window_so_the_wow_screen_is_out_of_sight():
+    lua, ns, G = start()
+    R = ns.Main.render()
+    assert R.catcher.strata == "DIALOG" and R.frame.strata == "DIALOG"
+    assert int(R.catcher.level) < int(R.frame.level)
+    assert [float(v) for v in R.black.flat.values()] == [0.0, 0.0, 0.0]

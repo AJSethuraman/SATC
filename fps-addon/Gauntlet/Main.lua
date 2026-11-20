@@ -281,7 +281,7 @@ local function mouselook(on)
   if on then
     local client = true
     if IsMouselooking then client = IsMouselooking() and true or false end
-    if not G.looking or not client then MouselookStart(); G.looking = true; G.face = nil end
+    if not G.looking or not client then MouselookStart(); G.looking = true; G.run.mouse.restarts = (G.run.mouse.restarts or 0) + 1 end   -- the facing baseline is kept: a restart must not eat a turn
   elseif G.looking or (IsMouselooking and IsMouselooking()) then
     MouselookStop(); G.looking = false
   end
@@ -301,8 +301,8 @@ end
 -- A line of what the client reports about the mouse, shown while the lock is on (/gaunt mouse debug hides it): for a client that gives no signal.
 local function mouse_debug_line()
   local function v(fn, ...) if not fn then return "none" end local ok, a = pcall(fn, ...) if not ok then return "error" end return a == nil and "nil" or (type(a) == "number" and string.format("%.3f", a) or tostring(a)) end
-  return string.format("facing %s   delta %s   cursor %s   locked %s   seen: delta %d  facing %d  cursor %d", v(GetPlayerFacing), GetCursorDelta and tostring(G.read_delta) or "none", v(GetCursorPosition),
-    tostring(IsMouselooking and IsMouselooking() or false), G.run.mouse.delta, G.run.mouse.facing, G.run.mouse.pos or 0)
+  return string.format("facing %s   delta %s   cursor %s   locked %s   seen: delta %d  facing %d  cursor %d   restarts %d  errors %d", v(GetPlayerFacing), GetCursorDelta and tostring(G.read_delta) or "none", v(GetCursorPosition),
+    tostring(IsMouselooking and IsMouselooking() or false), G.run.mouse.delta, G.run.mouse.facing, G.run.mouse.pos or 0, G.run.mouse.restarts or 0, #G.run.errors)
 end
 
 local function mouse_turn()
@@ -435,7 +435,12 @@ local function ensure_window()
   R.frame:SetScript("OnKeyUp", function(self, key) if G and G.keys then G.keys[key] = nil end end)
   -- A see-through frame over the whole screen, just under the game window: while you play, no click can reach anything else.
   local catcher = CreateFrame("Frame", nil, UIParent)
-  catcher:SetAllPoints(UIParent); catcher:SetFrameStrata("HIGH"); catcher:EnableMouse(true)
+  -- It is also solid black, level with the game window but under it, so the world and the WoW interface are out of sight while you play.
+  catcher:SetAllPoints(UIParent); catcher:SetFrameStrata("DIALOG"); catcher:SetFrameLevel(1); catcher:EnableMouse(true)
+  local black = catcher:CreateTexture(nil, "BACKGROUND")
+  black:SetAllPoints(catcher); black:SetColorTexture(0, 0, 0, 1)
+  R.black = black
+  R.frame:SetFrameLevel(10)
   catcher:Hide()
   R.catcher = catcher
   local function down(self, button)
