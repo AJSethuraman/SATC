@@ -640,3 +640,36 @@ def test_the_report_says_which_mouse_signal_the_client_gave():
     lua.execute("FACING = FACING - 0.1")
     tick(lua, 1)
     assert "MOUSE: turns seen from cursor movement 1" in str(ns.Main.report_text())
+
+
+# ---------------------------------------------------------------- the cursor cannot leave the game
+def test_a_screen_wide_catcher_takes_every_click_while_you_play_and_goes_with_the_window():
+    lua, ns, G = start()
+    c = ns.Main.render().catcher
+    assert c.shown
+    c.scripts.OnMouseDown(c, "LeftButton")                      # a click anywhere on the screen
+    assert G.mouse_down is True
+    c.scripts.OnMouseUp(c, "LeftButton")
+    assert G.mouse_down is False
+    ns.Main.stop()
+    assert not c.shown
+
+
+def test_with_the_cursor_turn_the_whole_screen_counts_and_a_cursor_far_outside_the_window_still_turns():
+    lua, ns, G = start("UIParent.GetWidth = function() return 1000 end; UIParent.GetEffectiveScale = function() return 1 end")
+    w = hall_world(lua, ns, G)
+    a0 = w.player.ang
+    lua.execute("CURSOR[1] = 500 + 500")                        # at the right edge of the screen, well outside the window
+    tick(lua, 75)
+    assert w.player.ang - a0 == pytest.approx(5.0, abs=0.1)     # full speed for one second
+    lua.execute("CURSOR[1] = 500")                              # the middle of the screen
+    a1 = w.player.ang
+    tick(lua, 30)
+    assert w.player.ang == pytest.approx(a1)
+
+
+def test_holding_the_mouse_button_fires_even_when_the_click_went_elsewhere():
+    lua, ns, G = start("function IsMouseButtonDown(b) return b == 'LeftButton' end")
+    n = G.w.player.ammo.bullets
+    tick(lua, 60)
+    assert G.w.player.ammo.bullets < n
