@@ -14,7 +14,8 @@ Main.COLUMNS = 320
 Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N sets it
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
-Main.look = false        -- true mouse look is opt-in (/gaunt mouse look): it depends on the client reporting your facing
+Main.look = true         -- the mouse is locked to the middle and turns the view (/gaunt mouse edge goes back to the cursor turn)
+Main.SENS = 0.0035       -- radians per pixel of mouse movement (/gaunt mouse sens N)
 
 local TURN, KEYTURN, DEAD, SPEED = 5.0, 2.3, 0.08, 3.4
 local KEYS = { W = true, A = true, S = true, D = true, Q = true, E = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, SPACE = true,
@@ -58,7 +59,7 @@ end
 
 ---------------------------------------------------------------- the run's record (for the report)
 local function new_run()
-  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0 }
+  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0, mouse = { delta = 0, facing = 0 } }
 end
 
 local function level_rec(n)
@@ -235,16 +236,26 @@ end
 -- True mouse look: the client's own mouselook turns the player with the mouse; the change in GetPlayerFacing each frame is how far
 -- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
 -- Instances hide the facing (it comes back nil), so look only when a value is really available.
-local function look_on() return Main.mouse and Main.look and MouselookStart and GetPlayerFacing and GetPlayerFacing() ~= nil end
+local function look_on()
+  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil)) and true or false
+end
 
+-- How far the mouse turned you this frame, in radians (right is positive). Two sources, because clients differ: the cursor's own
+-- movement (GetCursorDelta, pixels) and the change in the player's facing. Which one worked is counted, so the report can say.
 local function look_turn()
-  local f = GetPlayerFacing()
+  local m = G.run.mouse
+  if GetCursorDelta then
+    local dx = GetCursorDelta()
+    if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
+  end
+  local f = GetPlayerFacing and GetPlayerFacing()
   if not f then return 0 end
   local last = G.face
   G.face = f
   if not last then return 0 end
   local d = f - last
   if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
+  if d ~= 0 then m.facing = m.facing + 1 end
   return -d                                   -- facing grows turning left; our angle grows turning right
 end
 
@@ -454,12 +465,13 @@ SlashCmdList.GAUNTLET = function(arg)
   elseif arg:match("^mouse") then
     local w = arg:match("^mouse%s+(%a+)")
     if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false; if G then mouselook(false) end
+    elseif arg:match("^mouse%s+sens") then Main.SENS = math.max(0.0005, math.min(0.02, tonumber(arg:match("sens%s+([%d%.]+)")) or Main.SENS)); say("mouse sensitivity: " .. Main.SENS)
     elseif w == "edge" then Main.mouse = true; Main.look = false; if G then mouselook(false) end
     elseif w == "look" then Main.mouse = true; Main.look = true
     elseif w == "debug" then say(string.format("facing %s  cursor %s  looking %s", tostring(GetPlayerFacing and GetPlayerFacing()), tostring(GetCursorPosition and (GetCursorPosition())), tostring(G and G.looking))) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main
