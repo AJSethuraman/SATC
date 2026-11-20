@@ -55,10 +55,18 @@ end
 
 -- The mode to use: "look" (lock the mouse) if any signal moved while locked, otherwise "free" (turn with the cursor's own movement).
 -- A client that gave nothing even with the cursor free gets "edge".
+local function has(list, name) for _, v in ipairs(list) do if v == name then return true end end return false end
+
+-- "lockpos" is a lock where only the reported cursor position moves (the game then needs to know to lock without a delta or a facing).
+-- "free" needs the cursor position itself to move: that is the only signal the cursor-follow turn reads.
 function Probe.verdict(P)
   local locked = Probe.working(P.stats[2])
-  if #locked > 0 then return "look", locked end
-  if #Probe.working(P.stats[1]) > 0 then return "free", Probe.working(P.stats[1]) end
+  if #locked > 0 then
+    if not has(locked, "delta") and not has(locked, "facing") then return "lockpos", locked end
+    return "look", locked
+  end
+  local free = Probe.working(P.stats[1])
+  if has(free, "cursor") then return "free", free end
   return "edge", {}
 end
 
@@ -102,12 +110,15 @@ local function read()
   return r
 end
 
+local we_started = false                      -- did this test start the lock? Then it stops it, whatever IsMouselooking says
 local function lock(on)
   if not (MouselookStart and MouselookStop) then return end
   if on then
     if not (IsMouselooking and IsMouselooking()) then MouselookStart() end
-  elseif IsMouselooking and IsMouselooking() then
+    we_started = true
+  elseif we_started or (IsMouselooking and IsMouselooking()) then
     MouselookStop()
+    we_started = false
   end
 end
 

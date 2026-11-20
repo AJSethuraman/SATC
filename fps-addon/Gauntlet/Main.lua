@@ -240,14 +240,15 @@ end
 -- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
 -- Instances hide the facing (it comes back nil), so look only when a value is really available.
 local function look_on()
-  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil)) and true or false
+  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil) or Main.lockpos) and true or false
 end
 
 -- How far the mouse turned you this frame, in radians (right is positive). Two sources, because clients differ: the cursor's own
 -- movement (GetCursorDelta, pixels) and the change in the player's facing. Which one worked is counted, so the report can say.
 local function look_turn()
   local m = G.run.mouse
-  -- the facing baseline moves every frame, whichever signal is used, so a turn is never counted twice (mouselook turns the player too)
+  -- Every signal's baseline moves every frame, whichever one is used, so a turn is never counted twice (the lock turns the player and moves the
+  -- reported cursor along with the delta).
   local d = 0
   local f = GetPlayerFacing and GetPlayerFacing()
   if f then
@@ -258,19 +259,20 @@ local function look_turn()
       if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
     end
   end
-  if GetCursorDelta then
-    local dx = GetCursorDelta()                 -- read once per frame: the client resets it on each read
-    G.read_delta = dx
-    if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
-  end
-  if d ~= 0 then m.facing = m.facing + 1; return -d end      -- facing grows turning left; our angle grows turning right
-  -- third signal: some clients keep reporting the cursor position while it is locked
-  if GetCursorPosition then
-    local x = GetCursorPosition()
-    local last = G.lx
+  local px = 0
+  local x = GetCursorPosition and GetCursorPosition()
+  if x then
+    if G.lx then px = x - G.lx end
     G.lx = x
-    if x and last and x ~= last then m.pos = m.pos + 1; return (x - last) * Main.SENS end
   end
+  local dx
+  if GetCursorDelta then
+    dx = GetCursorDelta()                       -- read once per frame: the client resets it on each read
+    G.read_delta = dx
+  end
+  if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
+  if d ~= 0 then m.facing = m.facing + 1; return -d end      -- facing grows turning left; our angle grows turning right
+  if px ~= 0 then m.pos = m.pos + 1; return px * Main.SENS end
   return 0
 end
 
@@ -495,7 +497,8 @@ end
 -- The mouse test picks "look" (lock the mouse), "free" (turn with the cursor's movement) or "edge" (turn by distance from the middle).
 function Main.set_mouse_mode(mode)
   Main.mouse = true
-  Main.look, Main.edge = (mode == "look"), (mode == "edge")
+  Main.lockpos = (mode == "lockpos")                                   -- locked, and only the reported cursor position moves
+  Main.look, Main.edge = (mode == "look" or mode == "lockpos"), (mode == "edge")
   if G and not Main.look then mouselook(false) end
 end
 

@@ -820,3 +820,35 @@ def test_the_catcher_is_solid_black_and_under_the_game_window_so_the_wow_screen_
     assert R.catcher.strata == "DIALOG" and R.frame.strata == "DIALOG"
     assert int(R.catcher.level) < int(R.frame.level)
     assert [float(v) for v in R.black.flat.values()] == [0.0, 0.0, 0.0]
+
+
+def test_a_gesture_is_not_counted_again_when_the_delta_and_the_cursor_position_both_move():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("DX = 100; CURSOR[1] = CURSOR[1] + 100")           # one gesture seen both ways
+    tick(lua, 1)
+    tick(lua, 3)                                                    # then the mouse stops
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)
+
+
+LOCKPOS = """
+LOCKED = false
+function GetPlayerFacing() return nil end
+function MouselookStart() LOCKED = true end
+function MouselookStop() LOCKED = false end
+function IsMouselooking() return LOCKED end
+"""
+
+
+def test_a_client_where_only_the_cursor_position_moves_while_locked_still_gets_the_lock_once_the_test_says_so():
+    lua, ns, G = start(LOCKPOS)
+    tick(lua, 2)
+    assert lua.eval("LOCKED") is False                              # no delta, no facing: the lock is not used by default
+    ns.Main.set_mouse_mode("lockpos")
+    tick(lua, 2)
+    assert lua.eval("LOCKED") is True
+    a0 = G.w.player.ang
+    lua.execute("CURSOR[1] = CURSOR[1] + 60")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(60 * 0.0035)

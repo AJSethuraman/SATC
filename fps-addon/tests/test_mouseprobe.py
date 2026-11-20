@@ -114,3 +114,38 @@ def test_escape_cancels_the_test_and_lets_go_of_the_mouse():
     assert lua.eval("LOCKED") is True
     f.scripts.OnKeyDown(f, "ESCAPE")
     assert lua.eval("LOCKED") is False and not f.shown
+
+
+def test_free_is_chosen_only_if_the_cursor_position_itself_moved_since_that_is_what_the_game_reads():
+    lua, ns = boot()
+    P = ns.MouseProbe.new()
+    for i in range(10):
+        ns.MouseProbe.sample(P, lua.table_from({"cx": 500, "dx": 5}))          # only the delta moved with the cursor free
+    assert ns.MouseProbe.verdict(P)[0] == "edge"
+
+
+def test_only_the_cursor_position_moving_while_locked_is_its_own_choice_and_delta_or_facing_is_look():
+    lua, ns = boot()
+    P = ns.MouseProbe.new()
+    P.phase = 2
+    for i in range(10):
+        ns.MouseProbe.sample(P, lua.table_from({"cx": 500 + i}))
+    assert ns.MouseProbe.verdict(P)[0] == "lockpos"
+    Q = ns.MouseProbe.new()
+    Q.phase = 2
+    for i in range(10):
+        ns.MouseProbe.sample(Q, lua.table_from({"cx": 500 + i, "dx": 3}))
+    assert ns.MouseProbe.verdict(Q)[0] == "look"
+
+
+def test_the_lock_the_test_started_is_always_stopped_even_if_the_client_never_says_it_is_locked():
+    lua, ns = boot(API + "function IsMouselooking() return false end")
+    slash(lua, "mousetest")
+    f = lua.eval("FRAMES.GauntletMouseProbe")
+    for _ in range(7 * 60):
+        f.scripts.OnUpdate(f, 1 / 60)
+        if lua.eval("LOCKED"):
+            break
+    assert lua.eval("LOCKED") is True
+    f.scripts.OnKeyDown(f, "ESCAPE")
+    assert lua.eval("LOCKED") is False                              # stopped although IsMouselooking never said so
