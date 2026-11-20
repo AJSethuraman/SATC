@@ -13,4 +13,5 @@ Play.lua
 Bench.lua
 Render.lua
 Gauntlet.lua
+MouseProbe.lua
 Main.lua

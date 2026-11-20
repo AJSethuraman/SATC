@@ -3,7 +3,7 @@ import math
 import pytest
 from test_gauntlet import MOCK, G as GDIR, lupa
 
-FILES = ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "Main")
+FILES = ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "MouseProbe", "Main")
 
 
 def boot(prelude=""):

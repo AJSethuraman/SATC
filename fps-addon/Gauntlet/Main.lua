@@ -414,6 +414,7 @@ end
 local function ensure_window()
   if R then return end
   R = Render.build("GauntletGameFrame")
+  if db().mouse_mode then Main.set_mouse_mode(db().mouse_mode) end        -- what /gaunt mousetest found works on this client
   if R.frame.SetScale then R.frame:SetScale(Main.scale()) end
   build_hud()
   R.frame:SetScript("OnUpdate", on_update)
@@ -486,6 +487,13 @@ function Main.scale()
   return math.max(1, math.min(3, uw * 0.94 / (Render.VW + 16), uh * 0.92 / (Render.VH + 64)))
 end
 
+-- The mouse test picks "look" (lock the mouse), "free" (turn with the cursor's movement) or "edge" (turn by distance from the middle).
+function Main.set_mouse_mode(mode)
+  Main.mouse = true
+  Main.look, Main.edge = (mode == "look"), (mode == "edge")
+  if G and not Main.look then mouselook(false) end
+end
+
 function Main.stop()
   if G then mouselook(false) end
   if G and G.run then save_report() end
@@ -520,6 +528,7 @@ SlashCmdList.GAUNTLET = function(arg)
     if Main.probe_report then text = Gauntlet.report_text(); if not text then say("the speed test has not finished yet; wait for it, then try again"); return end else text = Main.report_text() or Gauntlet.report_text() end
     if text then Gauntlet.copy_text(text) else say("no report yet: play first with /gaunt") end
   elseif arg == "stop" then Main.stop(); if Gauntlet then Gauntlet.stop() end
+  elseif arg == "mousetest" then ns.MouseProbe.start()
   elseif arg:match("^scale") then
     local n = tonumber(arg:match("^scale%s+([%d%.]+)"))
     Main.SCALE = n and math.max(0.6, math.min(3, n)) or nil
@@ -540,7 +549,7 @@ SlashCmdList.GAUNTLET = function(arg)
     elseif w == "debug" then Main.debug = not Main.debug; if R and R.dbg and not Main.debug then R.dbg:SetText("") end; say("mouse readings line: " .. (Main.debug and "on" or "off")) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|free|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt mousetest (finds the mouse mode that works) | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|free|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main

@@ -62,7 +62,7 @@ def boot(prelude=""):
     lua.execute(MOCK + "\n" + prelude)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Gauntlet', ns) end")
-    for f in ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "Main"):
+    for f in ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "MouseProbe", "Main"):
         ld(str(G / f"{f}.lua"), ns)
     return lua, ns
 
