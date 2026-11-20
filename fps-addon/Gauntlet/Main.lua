@@ -14,7 +14,8 @@ Main.COLUMNS = 320
 Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N sets it
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
-Main.look = true         -- the mouse is locked to the middle and turns the view (/gaunt mouse edge goes back to the cursor turn)
+Main.look = true         -- the mouse is locked to the middle and turns the view; where the client cannot lock it, the view turns with the cursor's movement
+Main.edge = false        -- /gaunt mouse edge: the old turn, speed set by how far the cursor is from the middle (it keeps turning while it is off-centre)
 Main.SENS = 0.0035       -- radians per pixel of mouse movement (/gaunt mouse sens N)
 
 local TURN, KEYTURN, DEAD, SPEED = 5.0, 2.3, 0.08, 3.4
@@ -84,7 +85,8 @@ function Main.begin_level(n, carry)
   G.hurt, G.pick = 0, 0
   local rec = level_rec(n)
   rec.total, rec.pickups = G.w.stats.total, G.w.stats.pickups_total
-  R.title:SetText(string.format("Gauntlet   level %d: %s", n, G.w.lv.name))
+  G.title, G.mlabel = string.format("Gauntlet   level %d: %s", n, G.w.lv.name), nil
+  R.title:SetText(G.title)
   message(string.format("LEVEL %d: %s", n, string.upper(G.w.lv.name)), 3)
   if n == 1 and not carry then save_progress(1, nil) else save_progress(n, G.level_carry) end
   Render.set_columns(R, Main.COLUMNS)
@@ -263,10 +265,28 @@ local function look_turn()
   return -d                                   -- facing grows turning left; our angle grows turning right
 end
 
+-- Keep the client's mouselook on while you play. A click (or anything else that grabs the mouse) ends it without telling us, so each frame
+-- asks the client whether it is still looking and starts it again if not; our own flag alone would say "looking" long after it stopped.
 local function mouselook(on)
   if not (MouselookStart and MouselookStop) then return end
-  if on and not G.looking then MouselookStart(); G.looking = true; G.face = nil
-  elseif not on and G.looking then MouselookStop(); G.looking = false end
+  if on then
+    local client = true
+    if IsMouselooking then client = IsMouselooking() and true or false end
+    if not G.looking or not client then MouselookStart(); G.looking = true; G.face = nil end
+  elseif G.looking or (IsMouselooking and IsMouselooking()) then
+    MouselookStop(); G.looking = false
+  end
+end
+
+-- No lock available: turn by how far the cursor moved since the last frame. A still cursor does not turn you, so nothing sways.
+local function free_turn()
+  if not (Main.mouse and GetCursorPosition) then G.cx = nil; return 0 end
+  local mx = GetCursorPosition()
+  if not mx then return 0 end
+  local last = G.cx
+  G.cx = mx
+  if not last then return 0 end
+  return (mx - last) * Main.SENS
 end
 
 local function mouse_turn()
@@ -297,7 +317,9 @@ local function play_frame(dt)
   local side = (k.D and 1 or 0) - (k.A and 1 or 0)
   local turn = (k.E and 1 or 0) - (k.Q and 1 or 0) + (k.RIGHT and 1 or 0) - (k.LEFT and 1 or 0)
   p.ang = p.ang + turn * KEYTURN * dt
-  if look_on() then mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); p.ang = p.ang + mouse_turn() * dt end
+  local label = not Main.mouse and "mouse off" or look_on() and "mouse locked" or Main.edge and "mouse: edge turn" or "mouse: follows cursor"
+  if G.mlabel ~= label and G.title then G.mlabel = label; R.title:SetText(G.title .. "     [" .. label .. "]") end
+  if look_on() then G.cx = nil; mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then G.cx = nil; p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn() end end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
   local held = G.mouse_down or (IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
@@ -323,7 +345,7 @@ local function frame_body(dt)
     r.fps_n, r.fps_sum = r.fps_n + 1, r.fps_sum + fps
     r.fps_min = (r.fps_min == nil or fps < r.fps_min) and fps or r.fps_min
   end
-  if G.stage ~= "play" then mouselook(false) end        -- end screens need a visible cursor to click
+  if G.stage ~= "play" then mouselook(false); G.cx = nil end        -- end screens need a visible cursor to click
   if G.stage == "play" then
     play_frame(dt)
     if G.w.over and G.stage == "play" then died() end
@@ -493,12 +515,13 @@ SlashCmdList.GAUNTLET = function(arg)
     local w = arg:match("^mouse%s+(%a+)")
     if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false; if G then mouselook(false) end
     elseif arg:match("^mouse%s+sens") then Main.SENS = math.max(0.0005, math.min(0.02, tonumber(arg:match("sens%s+([%d%.]+)")) or Main.SENS)); say("mouse sensitivity: " .. Main.SENS)
-    elseif w == "edge" then Main.mouse = true; Main.look = false; if G then mouselook(false) end
-    elseif w == "look" then Main.mouse = true; Main.look = true
+    elseif w == "edge" then Main.mouse = true; Main.look = false; Main.edge = true; if G then mouselook(false) end
+    elseif w == "free" then Main.mouse = true; Main.look = false; Main.edge = false; if G then mouselook(false) end
+    elseif w == "look" then Main.mouse = true; Main.look = true; Main.edge = false
     elseif w == "debug" then say(string.format("facing %s  cursor %s  looking %s", tostring(GetPlayerFacing and GetPlayerFacing()), tostring(GetCursorPosition and (GetCursorPosition())), tostring(G and G.looking))) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|free|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main
