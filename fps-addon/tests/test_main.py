@@ -122,6 +122,7 @@ def test_a_key_that_is_not_ours_goes_through_to_the_game():
 
 def test_the_mouse_turns_by_how_far_the_cursor_is_from_the_middle():
     lua, ns, G = start()
+    slash(lua, "mouse edge")
     w = hall_world(lua, ns, G)
     a0 = w.player.ang
     lua.execute("CURSOR[1] = 500 + 20")
@@ -657,6 +658,7 @@ def test_a_screen_wide_catcher_takes_every_click_while_you_play_and_goes_with_th
 
 def test_with_the_cursor_turn_the_whole_screen_counts_and_a_cursor_far_outside_the_window_still_turns():
     lua, ns, G = start("UIParent.GetWidth = function() return 1000 end; UIParent.GetEffectiveScale = function() return 1 end")
+    slash(lua, "mouse edge")
     w = hall_world(lua, ns, G)
     a0 = w.player.ang
     lua.execute("CURSOR[1] = 500 + 500")                        # at the right edge of the screen, well outside the window
@@ -683,3 +685,48 @@ def test_a_turn_is_not_counted_twice_when_the_client_gives_both_the_cursor_delta
     tick(lua, 1)
     tick(lua, 3)                                                  # then the mouse stops
     assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)    # no extra rotation afterwards
+
+
+REAL_LOOK = LOOK + """
+STARTS = 0
+function MouselookStart() LOOKING = true; STARTS = STARTS + 1 end
+function IsMouselooking() return LOOKING end
+"""
+
+
+def test_mouselook_is_started_again_when_a_click_ends_it_behind_our_back():
+    lua, ns, G = start(REAL_LOOK)
+    tick(lua, 3)
+    assert lua.eval("STARTS") == 1                                   # started once, then left alone
+    lua.execute("LOOKING = false")                                   # the client ended it (a click, a window, anything)
+    tick(lua, 1)
+    assert lua.eval("LOOKING") is True and lua.eval("STARTS") == 2   # and it is back on the very next frame
+
+
+def test_mouselook_is_released_if_the_client_still_has_it_when_we_stop():
+    lua, ns, G = start(REAL_LOOK)
+    tick(lua, 2)
+    ns.Main.stop()
+    assert lua.eval("LOOKING") is False
+
+
+def test_with_no_lock_the_view_turns_with_the_cursor_movement_and_a_cursor_left_off_centre_does_not_sway():
+    lua, ns, G = start()                                            # the stand-in client has no mouselook: this is the fallback
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    a0 = w.player.ang
+    lua.execute("CURSOR[1] = 500 + 300")                            # a sweep of 300 pixels to the right
+    tick(lua, 1)
+    assert w.player.ang - a0 == pytest.approx(300 * 0.0035)
+    tick(lua, 200)                                                  # the cursor stays where it is, far from the middle
+    assert w.player.ang - a0 == pytest.approx(300 * 0.0035)         # and the view does not drift
+    assert "follows cursor" in str(ns.Main.render().title.text)
+
+
+def test_the_title_says_which_mouse_mode_is_live():
+    lua, ns, G = start(REAL_LOOK)
+    tick(lua, 2)
+    assert "mouse locked" in str(ns.Main.render().title.text)
+    slash(lua, "mouse edge")
+    tick(lua, 2)
+    assert "edge turn" in str(ns.Main.render().title.text)
