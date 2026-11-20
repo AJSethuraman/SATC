@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: Gauntlet (a first-person shooter)
+## Notes: A first-person shooter drawn with WoW's own widgets and assets. /gaunt plays; /gaunt test runs the speed and asset tests.
+## SavedVariables: GauntletDB
+# 16001 is what /dump select(4, GetBuildInfo()) returned on Forever.
+Build.lua
+Ray.lua
+Level.lua
+Rules.lua
+Nav.lua
+Gen.lua
+Play.lua
+Bench.lua
+Render.lua
+Gauntlet.lua
+Main.lua

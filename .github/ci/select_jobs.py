@@ -158,6 +158,13 @@ PYTEST: List[Dict[str, object]] = [
         "install": "pip install -r requirements.txt",
         "reads": [],
     },
+    # Gauntlet (fps-addon): the owner's WoW shooter, not practice software.
+    # Tests run the real Lua under lupa against a stand-in game client.
+    {
+        "project": "fps-addon",
+        "install": "pip install lupa pytest",
+        "reads": [],
+    },
 ]
 
 # ---------------------------------------------------------------------------
