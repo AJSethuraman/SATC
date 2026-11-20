@@ -587,10 +587,10 @@ def test_the_gun_is_drawn_as_a_first_person_shape_that_changes_with_the_weapon_a
     assert R.weapon.pts.x >= 60                            # held to the right of the middle
 
 
-def test_the_default_does_not_start_mouselook_and_the_window_fits_the_screen():
+def test_the_window_fits_the_screen_and_mouselook_is_the_default_where_the_client_has_it():
     lua, ns, G = start(LOOK + "UIParent.GetWidth = function() return 1600 end; UIParent.GetHeight = function() return 900 end")
     tick(lua, 3)
-    assert lua.eval("LOOKING") is False
+    assert lua.eval("LOOKING") is True
     s = ns.Main.scale()
     assert s == pytest.approx(900 * 0.92 / 424)             # the height is the tighter side
     slash(lua, "scale 1.2")
@@ -606,3 +606,80 @@ def test_floor_and_ceiling_get_darker_toward_the_horizon():
     def shade(b): return float(b.flat[1])
     ceil, floor = bands[0::2], bands[1::2]
     assert shade(ceil[0]) > shade(ceil[-1]) and shade(floor[0]) > shade(floor[-1])
+
+
+CURSOR_DELTA = LOOK + """
+DX = 0
+function GetCursorDelta() local d = DX; DX = 0; return d, 0 end
+"""
+
+
+def test_the_mouse_is_locked_to_the_middle_and_the_view_turns_by_the_pixels_the_mouse_moved():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("DX = 200")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(200 * 0.0035)       # 200 pixels right: 0.7 radians
+    lua.execute("DX = -100")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)
+    tick(lua, 5)
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)       # a still mouse does not drift
+    slash(lua, "mouse sens 0.01")
+    lua.execute("DX = 10")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035 + 0.1)
+
+
+def test_the_report_says_which_mouse_signal_the_client_gave():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    lua.execute("DX = 50")
+    tick(lua, 1)
+    lua.execute("FACING = FACING - 0.1")
+    tick(lua, 1)
+    assert "MOUSE: turns seen from cursor movement 1" in str(ns.Main.report_text())
+
+
+# ---------------------------------------------------------------- the cursor cannot leave the game
+def test_a_screen_wide_catcher_takes_every_click_while_you_play_and_goes_with_the_window():
+    lua, ns, G = start()
+    c = ns.Main.render().catcher
+    assert c.shown
+    c.scripts.OnMouseDown(c, "LeftButton")                      # a click anywhere on the screen
+    assert G.mouse_down is True
+    c.scripts.OnMouseUp(c, "LeftButton")
+    assert G.mouse_down is False
+    ns.Main.stop()
+    assert not c.shown
+
+
+def test_with_the_cursor_turn_the_whole_screen_counts_and_a_cursor_far_outside_the_window_still_turns():
+    lua, ns, G = start("UIParent.GetWidth = function() return 1000 end; UIParent.GetEffectiveScale = function() return 1 end")
+    w = hall_world(lua, ns, G)
+    a0 = w.player.ang
+    lua.execute("CURSOR[1] = 500 + 500")                        # at the right edge of the screen, well outside the window
+    tick(lua, 75)
+    assert w.player.ang - a0 == pytest.approx(5.0, abs=0.1)     # full speed for one second
+    lua.execute("CURSOR[1] = 500")                              # the middle of the screen
+    a1 = w.player.ang
+    tick(lua, 30)
+    assert w.player.ang == pytest.approx(a1)
+
+
+def test_holding_the_mouse_button_fires_even_when_the_click_went_elsewhere():
+    lua, ns, G = start("function IsMouseButtonDown(b) return b == 'LeftButton' end")
+    n = G.w.player.ammo.bullets
+    tick(lua, 60)
+    assert G.w.player.ammo.bullets < n
+
+
+def test_a_turn_is_not_counted_twice_when_the_client_gives_both_the_cursor_delta_and_the_facing():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("DX = 100; FACING = FACING - 100 * 0.0035")      # one gesture: the cursor moved and the player turned with it
+    tick(lua, 1)
+    tick(lua, 3)                                                  # then the mouse stops
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)    # no extra rotation afterwards

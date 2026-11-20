@@ -14,7 +14,8 @@ Main.COLUMNS = 320
 Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N sets it
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
-Main.look = false        -- true mouse look is opt-in (/gaunt mouse look): it depends on the client reporting your facing
+Main.look = true         -- the mouse is locked to the middle and turns the view (/gaunt mouse edge goes back to the cursor turn)
+Main.SENS = 0.0035       -- radians per pixel of mouse movement (/gaunt mouse sens N)
 
 local TURN, KEYTURN, DEAD, SPEED = 5.0, 2.3, 0.08, 3.4
 local KEYS = { W = true, A = true, S = true, D = true, Q = true, E = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, SPACE = true,
@@ -58,7 +59,7 @@ end
 
 ---------------------------------------------------------------- the run's record (for the report)
 local function new_run()
-  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0 }
+  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0, mouse = { delta = 0, facing = 0 } }
 end
 
 local function level_rec(n)
@@ -235,16 +236,30 @@ end
 -- True mouse look: the client's own mouselook turns the player with the mouse; the change in GetPlayerFacing each frame is how far
 -- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
 -- Instances hide the facing (it comes back nil), so look only when a value is really available.
-local function look_on() return Main.mouse and Main.look and MouselookStart and GetPlayerFacing and GetPlayerFacing() ~= nil end
+local function look_on()
+  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil)) and true or false
+end
 
+-- How far the mouse turned you this frame, in radians (right is positive). Two sources, because clients differ: the cursor's own
+-- movement (GetCursorDelta, pixels) and the change in the player's facing. Which one worked is counted, so the report can say.
 local function look_turn()
-  local f = GetPlayerFacing()
-  if not f then return 0 end
-  local last = G.face
-  G.face = f
-  if not last then return 0 end
-  local d = f - last
-  if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
+  local m = G.run.mouse
+  -- the facing baseline moves every frame, whichever signal is used, so a turn is never counted twice (mouselook turns the player too)
+  local d = 0
+  local f = GetPlayerFacing and GetPlayerFacing()
+  if f then
+    local last = G.face
+    G.face = f
+    if last then
+      d = f - last
+      if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
+    end
+  end
+  if GetCursorDelta then
+    local dx = GetCursorDelta()
+    if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
+  end
+  if d ~= 0 then m.facing = m.facing + 1 end
   return -d                                   -- facing grows turning left; our angle grows turning right
 end
 
@@ -257,11 +272,21 @@ end
 local function mouse_turn()
   if not (Main.mouse and GetCursorPosition) then return 0 end
   local mx = GetCursorPosition()
-  local scale = R.frame:GetEffectiveScale() or 1
-  local cx = R.frame:GetCenter()
-  if not (mx and cx) then return 0 end
-  local off = (mx / scale - cx) / (Render.VW / 2)
-  if math.abs(off) < DEAD or math.abs(off) > 1 then return 0 end
+  if not mx then return 0 end
+  -- measured across the whole screen (the catcher frame keeps the cursor from ever being "outside"); the window's own width if the screen size is unknown
+  local off
+  local uw = UIParent and UIParent.GetWidth and UIParent:GetWidth()
+  local us = UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()
+  if type(uw) == "number" and uw > 0 and type(us) == "number" and us > 0 then
+    off = (mx / us - uw / 2) / (uw / 2)
+  else
+    local scale = R.frame:GetEffectiveScale() or 1
+    local cx = R.frame:GetCenter()
+    if not cx then return 0 end
+    off = (mx / scale - cx) / (Render.VW / 2)
+  end
+  if math.abs(off) < DEAD then return 0 end
+  off = math.max(-1, math.min(1, off))
   return (off * 0.5 + off * math.abs(off) * 0.5) * TURN      -- gentle near the middle, quick toward the edge
 end
 
@@ -275,7 +300,7 @@ local function play_frame(dt)
   if look_on() then mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); p.ang = p.ang + mouse_turn() * dt end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
-  local held = G.mouse_down or (G.looking and IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
+  local held = G.mouse_down or (IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
   if k.SPACE or held then Play.fire(w) end
   Play.step(w, dt)
   local evs = w.events
@@ -366,6 +391,18 @@ local function ensure_window()
     end
   end)
   R.frame:SetScript("OnKeyUp", function(self, key) if G and G.keys then G.keys[key] = nil end end)
+  -- A see-through frame over the whole screen, just under the game window: while you play, no click can reach anything else.
+  local catcher = CreateFrame("Frame", nil, UIParent)
+  catcher:SetAllPoints(UIParent); catcher:SetFrameStrata("HIGH"); catcher:EnableMouse(true)
+  catcher:Hide()
+  R.catcher = catcher
+  local function down(self, button)
+    if button == "LeftButton" and G then if G.stage == "play" then G.mouse_down = true else Main.advance() end end
+  end
+  catcher:EnableMouseWheel(true)
+  catcher:SetScript("OnMouseWheel", function(self, delta) if G and G.stage == "play" then Play.cycle(G.w, delta > 0 and -1 or 1) end end)
+  catcher:SetScript("OnMouseDown", down)
+  catcher:SetScript("OnMouseUp", function(self, button) if button == "LeftButton" and G then G.mouse_down = false end end)
   R.frame:SetScript("OnMouseDown", function(self, button)
     if button ~= "LeftButton" or not G then return end
     if G.stage == "play" then G.mouse_down = true else Main.advance() end
@@ -388,6 +425,7 @@ function Main.start(fresh)
         seed = (time and time() or 1) % 100000 }
   local prog = (not fresh) and db().progress
   R.frame:Show()
+  if R.catcher then R.catcher:Show() end
   if prog and prog.level and prog.carry then
     G.seed = prog.seed or G.seed
     say("continuing at level " .. prog.level .. "  (/gaunt new starts over)")
@@ -410,7 +448,7 @@ end
 function Main.stop()
   if G then mouselook(false) end
   if G and G.run then save_report() end
-  if R then R.frame:Hide() end
+  if R then R.frame:Hide(); if R.catcher then R.catcher:Hide() end end
 end
 
 function Main.state() return G end
@@ -454,12 +492,13 @@ SlashCmdList.GAUNTLET = function(arg)
   elseif arg:match("^mouse") then
     local w = arg:match("^mouse%s+(%a+)")
     if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false; if G then mouselook(false) end
+    elseif arg:match("^mouse%s+sens") then Main.SENS = math.max(0.0005, math.min(0.02, tonumber(arg:match("sens%s+([%d%.]+)")) or Main.SENS)); say("mouse sensitivity: " .. Main.SENS)
     elseif w == "edge" then Main.mouse = true; Main.look = false; if G then mouselook(false) end
     elseif w == "look" then Main.mouse = true; Main.look = true
     elseif w == "debug" then say(string.format("facing %s  cursor %s  looking %s", tostring(GetPlayerFacing and GetPlayerFacing()), tostring(GetCursorPosition and (GetCursorPosition())), tostring(G and G.looking))) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main
