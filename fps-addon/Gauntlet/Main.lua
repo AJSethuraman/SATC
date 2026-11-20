@@ -244,17 +244,21 @@ end
 -- movement (GetCursorDelta, pixels) and the change in the player's facing. Which one worked is counted, so the report can say.
 local function look_turn()
   local m = G.run.mouse
+  -- the facing baseline moves every frame, whichever signal is used, so a turn is never counted twice (mouselook turns the player too)
+  local d = 0
+  local f = GetPlayerFacing and GetPlayerFacing()
+  if f then
+    local last = G.face
+    G.face = f
+    if last then
+      d = f - last
+      if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
+    end
+  end
   if GetCursorDelta then
     local dx = GetCursorDelta()
     if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
   end
-  local f = GetPlayerFacing and GetPlayerFacing()
-  if not f then return 0 end
-  local last = G.face
-  G.face = f
-  if not last then return 0 end
-  local d = f - last
-  if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
   if d ~= 0 then m.facing = m.facing + 1 end
   return -d                                   -- facing grows turning left; our angle grows turning right
 end

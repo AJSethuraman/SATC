@@ -673,3 +673,13 @@ def test_holding_the_mouse_button_fires_even_when_the_click_went_elsewhere():
     n = G.w.player.ammo.bullets
     tick(lua, 60)
     assert G.w.player.ammo.bullets < n
+
+
+def test_a_turn_is_not_counted_twice_when_the_client_gives_both_the_cursor_delta_and_the_facing():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("DX = 100; FACING = FACING - 100 * 0.0035")      # one gesture: the cursor moved and the player turned with it
+    tick(lua, 1)
+    tick(lua, 3)                                                  # then the mouse stops
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)    # no extra rotation afterwards
