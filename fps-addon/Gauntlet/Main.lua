@@ -396,12 +396,13 @@ SLASH_GAUNTLET1 = "/gaunt"
 SlashCmdList.GAUNTLET = function(arg)
   arg = (arg or ""):lower():match("^%s*(.-)%s*$")
   local Gauntlet = ns.Gauntlet
-  if arg == "" then Main.start(false)
-  elseif arg == "new" then Main.start(true)
-  elseif arg == "test" then Main.stop(); Gauntlet.run()
+  if arg == "" then Gauntlet.stop(); Main.probe_report = false; Main.start(false)
+  elseif arg == "new" then Gauntlet.stop(); Main.probe_report = false; Main.start(true)
+  elseif arg == "test" then Main.stop(); Main.probe_report = true; Gauntlet.run()
   elseif arg == "walk" then Main.stop(); Gauntlet.walk()
   elseif arg == "report" then
-    local text = Main.report_text() or Gauntlet.report_text()
+    local text
+    if Main.probe_report then text = Gauntlet.report_text(); if not text then say("the speed test has not finished yet; wait for it, then try again"); return end else text = Main.report_text() or Gauntlet.report_text() end
     if text then Gauntlet.copy_text(text) else say("no report yet: play first with /gaunt") end
   elseif arg == "stop" then Main.stop(); if Gauntlet then Gauntlet.stop() end
   elseif arg:match("^scale") then

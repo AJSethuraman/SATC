@@ -54,7 +54,7 @@ local function check_assets()
   end
   for _, id in ipairs(Level.SHOTS) do
     local ok = false
-    if PlaySoundFile then ok = (select(1, pcall(PlaySoundFile, id, "Master")) and true or false) end
+    if PlaySoundFile then local called, played = pcall(PlaySoundFile, id, "Master"); ok = (called and played ~= false and played ~= nil) end
     a.sounds[#a.sounds + 1] = { id = id, ok = ok }
   end
   return a

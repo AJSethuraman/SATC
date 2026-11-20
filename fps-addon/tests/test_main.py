@@ -468,3 +468,30 @@ def test_playing_a_whole_generated_game_start_to_finish_is_possible_by_walking_t
             key(lua, "SPACE")
         else:
             assert G.stage == "win"
+
+
+# ---------------------------------------------------------------- review findings (PR #492)
+def test_starting_the_game_closes_the_speed_test_window():
+    lua, ns = boot()
+    slash(lua, "test")
+    assert ns.Gauntlet.mode() == "bench"
+    slash(lua, "")
+    assert ns.Gauntlet.mode() is None or ns.Gauntlet.mode() == False or str(ns.Gauntlet.mode()) in ("None", "false", "idle")
+
+
+def test_report_after_a_speed_test_is_the_speed_report_not_the_old_game_report():
+    lua, ns, G = start()
+    tick(lua, 20)
+    ns.Main.stop()
+    slash(lua, "test")
+    slash(lua, "report")                                           # too early: says so rather than showing the old game report
+    assert any("not finished" in m for m in said(lua))
+    pf = lua.eval("FRAMES.GauntletFrame")
+    for _ in range(6000):
+        pf.scripts.OnUpdate(pf, 1 / 75)
+        if ns.Gauntlet.mode() == "walk":
+            break
+    assert ns.Gauntlet.mode() == "walk"
+    slash(lua, "report")
+    edits = [o for o in lua.eval("ALL").values() if o.kind == "EditBox"]
+    assert "GAUNTLET REPORT" in str(edits[-1].text) and "GAME REPORT" not in str(edits[-1].text)

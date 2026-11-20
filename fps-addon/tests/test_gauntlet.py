@@ -448,3 +448,14 @@ def test_the_slash_command_with_anything_else_lists_the_commands():
     lua, ns = boot()
     lua.eval("SlashCmdList.GAUNTLET")("what")
     assert any("/gaunt test" in m for m in said(lua))
+
+
+def test_a_sound_the_client_refuses_is_reported_as_will_not_play():
+    lua, ns = boot("function PlaySoundFile(id) return false end")
+    ns.Gauntlet.run()
+    for _ in range(3000):
+        ns.Gauntlet.render()
+        tick(lua, 1)
+        if ns.Gauntlet.mode() == "walk":
+            break
+    assert "sound file 567721: will not play" in str(lua.eval("GauntletDB.report"))
