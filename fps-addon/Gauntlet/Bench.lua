@@ -96,7 +96,7 @@ function Bench.game_report(run, extra)
     add(string.format("  %d %-22s %6s  kills %2d/%2d  pickups %2d/%2d  deaths %d%s", n, tostring(l.name), mmss(l.time or 0), l.kills or 0, l.total or 0, l.picked or 0, l.pickups or 0, l.deaths or 0,
         l.done and "  done" or ""))
   end
-  if run.mouse then add(string.format("MOUSE: turns seen from cursor movement %d, from facing %d", run.mouse.delta or 0, run.mouse.facing or 0)) end
+  if run.mouse then add(string.format("MOUSE: turns seen from cursor movement %d, from facing %d, from cursor position %d, lock restarts %d", run.mouse.delta or 0, run.mouse.facing or 0, run.mouse.pos or 0, run.mouse.restarts or 0)) end
   add("")
   add("DEATHS: " .. #(run.deaths or {}))
   for i, d in ipairs(run.deaths or {}) do

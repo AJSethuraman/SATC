@@ -15,6 +15,7 @@ Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N s
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
 Main.look = true         -- the mouse is locked to the middle and turns the view; where the client cannot lock it, the view turns with the cursor's movement
+Main.debug = true        -- a line of mouse readings is shown while the lock is on
 Main.edge = false        -- /gaunt mouse edge: the old turn, speed set by how far the cursor is from the middle (it keeps turning while it is off-centre)
 Main.SENS = 0.0035       -- radians per pixel of mouse movement (/gaunt mouse sens N)
 
@@ -60,7 +61,7 @@ end
 
 ---------------------------------------------------------------- the run's record (for the report)
 local function new_run()
-  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0, mouse = { delta = 0, facing = 0 } }
+  return { play = 0, levels = {}, deaths = {}, hurt_by = {}, shots = {}, shots_taken = 0, errors = {}, fps_n = 0, fps_sum = 0, fps_min = nil, started = time and time() or 0, mouse = { delta = 0, facing = 0, pos = 0 } }
 end
 
 local function level_rec(n)
@@ -239,14 +240,15 @@ end
 -- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
 -- Instances hide the facing (it comes back nil), so look only when a value is really available.
 local function look_on()
-  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil)) and true or false
+  return Main.mouse and Main.look and MouselookStart and MouselookStop and (GetCursorDelta or (GetPlayerFacing and GetPlayerFacing() ~= nil) or Main.lockpos) and true or false
 end
 
 -- How far the mouse turned you this frame, in radians (right is positive). Two sources, because clients differ: the cursor's own
 -- movement (GetCursorDelta, pixels) and the change in the player's facing. Which one worked is counted, so the report can say.
 local function look_turn()
   local m = G.run.mouse
-  -- the facing baseline moves every frame, whichever signal is used, so a turn is never counted twice (mouselook turns the player too)
+  -- Every signal's baseline moves every frame, whichever one is used, so a turn is never counted twice (the lock turns the player and moves the
+  -- reported cursor along with the delta).
   local d = 0
   local f = GetPlayerFacing and GetPlayerFacing()
   if f then
@@ -257,12 +259,21 @@ local function look_turn()
       if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
     end
   end
-  if GetCursorDelta then
-    local dx = GetCursorDelta()
-    if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
+  local px = 0
+  local x = GetCursorPosition and GetCursorPosition()
+  if x then
+    if G.lx then px = x - G.lx end
+    G.lx = x
   end
-  if d ~= 0 then m.facing = m.facing + 1 end
-  return -d                                   -- facing grows turning left; our angle grows turning right
+  local dx
+  if GetCursorDelta then
+    dx = GetCursorDelta()                       -- read once per frame: the client resets it on each read
+    G.read_delta = dx
+  end
+  if dx and dx ~= 0 then m.delta = m.delta + 1; return dx * Main.SENS end
+  if d ~= 0 then m.facing = m.facing + 1; return -d end      -- facing grows turning left; our angle grows turning right
+  if px ~= 0 then m.pos = m.pos + 1; return px * Main.SENS end
+  return 0
 end
 
 -- Keep the client's mouselook on while you play. A click (or anything else that grabs the mouse) ends it without telling us, so each frame
@@ -272,7 +283,7 @@ local function mouselook(on)
   if on then
     local client = true
     if IsMouselooking then client = IsMouselooking() and true or false end
-    if not G.looking or not client then MouselookStart(); G.looking = true; G.face = nil end
+    if not G.looking or not client then MouselookStart(); G.looking = true; G.run.mouse.restarts = (G.run.mouse.restarts or 0) + 1 end   -- the facing baseline is kept: a restart must not eat a turn
   elseif G.looking or (IsMouselooking and IsMouselooking()) then
     MouselookStop(); G.looking = false
   end
@@ -287,6 +298,13 @@ local function free_turn()
   G.cx = mx
   if not last then return 0 end
   return (mx - last) * Main.SENS
+end
+
+-- A line of what the client reports about the mouse, shown while the lock is on (/gaunt mouse debug hides it): for a client that gives no signal.
+local function mouse_debug_line()
+  local function v(fn, ...) if not fn then return "none" end local ok, a = pcall(fn, ...) if not ok then return "error" end return a == nil and "nil" or (type(a) == "number" and string.format("%.3f", a) or tostring(a)) end
+  return string.format("facing %s   delta %s   cursor %s   locked %s   seen: delta %d  facing %d  cursor %d   restarts %d  errors %d", v(GetPlayerFacing), GetCursorDelta and tostring(G.read_delta) or "none", v(GetCursorPosition),
+    tostring(IsMouselooking and IsMouselooking() or false), G.run.mouse.delta, G.run.mouse.facing, G.run.mouse.pos or 0, G.run.mouse.restarts or 0, #G.run.errors)
 end
 
 local function mouse_turn()
@@ -319,6 +337,7 @@ local function play_frame(dt)
   p.ang = p.ang + turn * KEYTURN * dt
   local label = not Main.mouse and "mouse off" or look_on() and "mouse locked" or Main.edge and "mouse: edge turn" or "mouse: follows cursor"
   if G.mlabel ~= label and G.title then G.mlabel = label; R.title:SetText(G.title .. "     [" .. label .. "]") end
+  if Main.debug and R.dbg then R.dbg:SetText(look_on() and mouse_debug_line() or "") end
   if look_on() then G.cx = nil; mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then G.cx = nil; p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn() end end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
@@ -371,6 +390,8 @@ end
 ---------------------------------------------------------------- the window
 local function build_hud()
   local f, v = R.frame, R.view
+  R.dbg = v:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  R.dbg:SetPoint("TOPLEFT", v, "TOPLEFT", 8, -6)
   local function text(x, w_)
     local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     fs:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, 10)
@@ -395,6 +416,7 @@ end
 local function ensure_window()
   if R then return end
   R = Render.build("GauntletGameFrame")
+  if db().mouse_mode then Main.set_mouse_mode(db().mouse_mode) end        -- what /gaunt mousetest found works on this client
   if R.frame.SetScale then R.frame:SetScale(Main.scale()) end
   build_hud()
   R.frame:SetScript("OnUpdate", on_update)
@@ -415,7 +437,12 @@ local function ensure_window()
   R.frame:SetScript("OnKeyUp", function(self, key) if G and G.keys then G.keys[key] = nil end end)
   -- A see-through frame over the whole screen, just under the game window: while you play, no click can reach anything else.
   local catcher = CreateFrame("Frame", nil, UIParent)
-  catcher:SetAllPoints(UIParent); catcher:SetFrameStrata("HIGH"); catcher:EnableMouse(true)
+  -- It is also solid black, level with the game window but under it, so the world and the WoW interface are out of sight while you play.
+  catcher:SetAllPoints(UIParent); catcher:SetFrameStrata("DIALOG"); catcher:SetFrameLevel(1); catcher:EnableMouse(true)
+  local black = catcher:CreateTexture(nil, "BACKGROUND")
+  black:SetAllPoints(catcher); black:SetColorTexture(0, 0, 0, 1)
+  R.black = black
+  R.frame:SetFrameLevel(10)
   catcher:Hide()
   R.catcher = catcher
   local function down(self, button)
@@ -467,6 +494,14 @@ function Main.scale()
   return math.max(1, math.min(3, uw * 0.94 / (Render.VW + 16), uh * 0.92 / (Render.VH + 64)))
 end
 
+-- The mouse test picks "look" (lock the mouse), "free" (turn with the cursor's movement) or "edge" (turn by distance from the middle).
+function Main.set_mouse_mode(mode)
+  Main.mouse = true
+  Main.lockpos = (mode == "lockpos")                                   -- locked, and only the reported cursor position moves
+  Main.look, Main.edge = (mode == "look" or mode == "lockpos"), (mode == "edge")
+  if G and not Main.look then mouselook(false) end
+end
+
 function Main.stop()
   if G then mouselook(false) end
   if G and G.run then save_report() end
@@ -501,6 +536,7 @@ SlashCmdList.GAUNTLET = function(arg)
     if Main.probe_report then text = Gauntlet.report_text(); if not text then say("the speed test has not finished yet; wait for it, then try again"); return end else text = Main.report_text() or Gauntlet.report_text() end
     if text then Gauntlet.copy_text(text) else say("no report yet: play first with /gaunt") end
   elseif arg == "stop" then Main.stop(); if Gauntlet then Gauntlet.stop() end
+  elseif arg == "mousetest" then ns.MouseProbe.start()
   elseif arg:match("^scale") then
     local n = tonumber(arg:match("^scale%s+([%d%.]+)"))
     Main.SCALE = n and math.max(0.6, math.min(3, n)) or nil
@@ -518,10 +554,10 @@ SlashCmdList.GAUNTLET = function(arg)
     elseif w == "edge" then Main.mouse = true; Main.look = false; Main.edge = true; if G then mouselook(false) end
     elseif w == "free" then Main.mouse = true; Main.look = false; Main.edge = false; if G then mouselook(false) end
     elseif w == "look" then Main.mouse = true; Main.look = true; Main.edge = false
-    elseif w == "debug" then say(string.format("facing %s  cursor %s  looking %s", tostring(GetPlayerFacing and GetPlayerFacing()), tostring(GetCursorPosition and (GetCursorPosition())), tostring(G and G.looking))) end
+    elseif w == "debug" then Main.debug = not Main.debug; if R and R.dbg and not Main.debug then R.dbg:SetText("") end; say("mouse readings line: " .. (Main.debug and "on" or "off")) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|free|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt mousetest (finds the mouse mode that works) | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|free|edge|off|sens 0.0035 | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main

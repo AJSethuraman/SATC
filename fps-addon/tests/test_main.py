@@ -3,7 +3,7 @@ import math
 import pytest
 from test_gauntlet import MOCK, G as GDIR, lupa
 
-FILES = ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "Main")
+FILES = ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "MouseProbe", "Main")
 
 
 def boot(prelude=""):
@@ -761,3 +761,94 @@ def test_cursor_movement_on_the_end_screen_does_not_turn_you_when_play_resumes()
     a0 = w.player.ang
     tick(lua, 3)
     assert w.player.ang == pytest.approx(a0)
+
+
+POS_ONLY = REAL_LOOK + """
+function GetPlayerFacing() return nil end
+function GetCursorDelta() return 0, 0 end
+"""
+
+
+def test_a_client_that_only_moves_the_reported_cursor_position_still_turns_you_and_the_readings_line_shows():
+    lua, ns, G = start(POS_ONLY)
+    tick(lua, 1)
+    # facing is nil here, so mouselook is not used: the cursor-follow fallback must still turn the view
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    a0 = w.player.ang
+    lua.execute("CURSOR[1] = 500 + 100")
+    tick(lua, 1)
+    assert w.player.ang - a0 == pytest.approx(100 * 0.0035)
+
+
+READINGS = REAL_LOOK + """
+function GetCursorDelta() return 0, 0 end
+"""
+
+
+def test_while_locked_the_view_turns_from_the_cursor_position_when_nothing_else_moves_and_a_readings_line_is_shown():
+    lua, ns, G = start(READINGS)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("CURSOR[1] = 500 + 80")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(80 * 0.0035)
+    tick(lua, 1)                                                   # the line is written at the start of a frame, so it shows the last frame's counts
+    line = str(ns.Main.render().dbg.text)
+    assert "facing" in line and "locked true" in line and "cursor 580.000" in line and "cursor 1" in line
+    slash(lua, "mouse debug")
+    tick(lua, 1)
+    assert str(ns.Main.render().dbg.text) == ""
+
+
+def test_turns_still_count_when_the_client_says_it_is_not_locked_so_the_lock_is_restarted_every_frame():
+    lua, ns, G = start(REAL_LOOK + "function IsMouselooking() return false end")
+    slash(lua, "mouse look")
+    tick(lua, 3)
+    a0 = G.w.player.ang
+    for i in range(5):
+        lua.execute("FACING = FACING - 0.05")
+        tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(0.25)                 # a restart each frame must not throw the turn away
+    assert G.run.mouse.restarts >= 5
+    assert "restarts" in str(ns.Main.render().dbg.text)
+
+
+def test_the_catcher_is_solid_black_and_under_the_game_window_so_the_wow_screen_is_out_of_sight():
+    lua, ns, G = start()
+    R = ns.Main.render()
+    assert R.catcher.strata == "DIALOG" and R.frame.strata == "DIALOG"
+    assert int(R.catcher.level) < int(R.frame.level)
+    assert [float(v) for v in R.black.flat.values()] == [0.0, 0.0, 0.0]
+
+
+def test_a_gesture_is_not_counted_again_when_the_delta_and_the_cursor_position_both_move():
+    lua, ns, G = start(CURSOR_DELTA)
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("DX = 100; CURSOR[1] = CURSOR[1] + 100")           # one gesture seen both ways
+    tick(lua, 1)
+    tick(lua, 3)                                                    # then the mouse stops
+    assert G.w.player.ang - a0 == pytest.approx(100 * 0.0035)
+
+
+LOCKPOS = """
+LOCKED = false
+function GetPlayerFacing() return nil end
+function MouselookStart() LOCKED = true end
+function MouselookStop() LOCKED = false end
+function IsMouselooking() return LOCKED end
+"""
+
+
+def test_a_client_where_only_the_cursor_position_moves_while_locked_still_gets_the_lock_once_the_test_says_so():
+    lua, ns, G = start(LOCKPOS)
+    tick(lua, 2)
+    assert lua.eval("LOCKED") is False                              # no delta, no facing: the lock is not used by default
+    ns.Main.set_mouse_mode("lockpos")
+    tick(lua, 2)
+    assert lua.eval("LOCKED") is True
+    a0 = G.w.player.ang
+    lua.execute("CURSOR[1] = CURSOR[1] + 60")
+    tick(lua, 1)
+    assert G.w.player.ang - a0 == pytest.approx(60 * 0.0035)
