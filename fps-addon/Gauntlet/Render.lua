@@ -42,13 +42,13 @@ function Render.build(name)
   R.bands = {}
   local NB = 8
   for i = 1, NB do
-    local k = (i - 1) / (NB - 1)                    -- 0 at the horizon, 1 at the top or bottom edge
+    local k = (i - 1) / (NB - 1)                    -- 0 at the top or bottom edge of the view (near you), 1 at the horizon (far)
     local c = v:CreateTexture(nil, "BACKGROUND")
     c:SetPoint("TOPLEFT", v, "TOPLEFT", 0, -(i - 1) * Render.VH / 2 / NB); c:SetSize(Render.VW, Render.VH / 2 / NB + 1)
-    c:SetColorTexture(0.05 + 0.07 * (1 - k), 0.05 + 0.06 * (1 - k), 0.08 + 0.08 * (1 - k), 1)
+    c:SetColorTexture(0.05 + 0.07 * (1 - k), 0.05 + 0.06 * (1 - k), 0.08 + 0.08 * (1 - k), 1)   -- lighter overhead, dark far away
     local f = v:CreateTexture(nil, "BACKGROUND")
     f:SetPoint("BOTTOMLEFT", v, "BOTTOMLEFT", 0, (i - 1) * Render.VH / 2 / NB); f:SetSize(Render.VW, Render.VH / 2 / NB + 1)
-    f:SetColorTexture(0.07 + 0.16 * k, 0.06 + 0.13 * k, 0.05 + 0.10 * k, 1)
+    f:SetColorTexture(0.07 + 0.16 * (1 - k), 0.06 + 0.13 * (1 - k), 0.05 + 0.10 * (1 - k), 1)   -- lighter underfoot, dark far away
     R.bands[#R.bands + 1] = c; R.bands[#R.bands + 1] = f
   end
   for i = 1, Render.MAXCOLS do

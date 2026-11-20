@@ -597,3 +597,12 @@ def test_the_default_does_not_start_mouselook_and_the_window_fits_the_screen():
     assert ns.Main.scale() == pytest.approx(1.2)
     slash(lua, "scale")
     assert ns.Main.scale() == pytest.approx(s)
+
+
+def test_floor_and_ceiling_get_darker_toward_the_horizon():
+    lua, ns, G = start()
+    R = ns.Main.render()
+    bands = [R.bands[i] for i in range(1, 17)]                     # ceiling, floor, ceiling, floor ... from the screen edge inward
+    def shade(b): return float(b.flat[1])
+    ceil, floor = bands[0::2], bands[1::2]
+    assert shade(ceil[0]) > shade(ceil[-1]) and shade(floor[0]) > shade(floor[-1])
