@@ -280,7 +280,7 @@ end
 
 -- No lock available: turn by how far the cursor moved since the last frame. A still cursor does not turn you, so nothing sways.
 local function free_turn()
-  if not (Main.mouse and GetCursorPosition) then return 0 end
+  if not (Main.mouse and GetCursorPosition) then G.cx = nil; return 0 end
   local mx = GetCursorPosition()
   if not mx then return 0 end
   local last = G.cx
@@ -319,7 +319,7 @@ local function play_frame(dt)
   p.ang = p.ang + turn * KEYTURN * dt
   local label = not Main.mouse and "mouse off" or look_on() and "mouse locked" or Main.edge and "mouse: edge turn" or "mouse: follows cursor"
   if G.mlabel ~= label and G.title then G.mlabel = label; R.title:SetText(G.title .. "     [" .. label .. "]") end
-  if look_on() then mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn() end end
+  if look_on() then G.cx = nil; mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then G.cx = nil; p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn() end end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
   local held = G.mouse_down or (IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
@@ -345,7 +345,7 @@ local function frame_body(dt)
     r.fps_n, r.fps_sum = r.fps_n + 1, r.fps_sum + fps
     r.fps_min = (r.fps_min == nil or fps < r.fps_min) and fps or r.fps_min
   end
-  if G.stage ~= "play" then mouselook(false) end        -- end screens need a visible cursor to click
+  if G.stage ~= "play" then mouselook(false); G.cx = nil end        -- end screens need a visible cursor to click
   if G.stage == "play" then
     play_frame(dt)
     if G.w.over and G.stage == "play" then died() end

@@ -730,3 +730,34 @@ def test_the_title_says_which_mouse_mode_is_live():
     slash(lua, "mouse edge")
     tick(lua, 2)
     assert "edge turn" in str(ns.Main.render().title.text)
+
+
+def test_cursor_movement_while_free_turning_is_off_does_not_turn_you_when_it_comes_back_on():
+    lua, ns, G = start()
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    slash(lua, "mouse off")
+    tick(lua, 2)
+    lua.execute("CURSOR[1] = 500 + 1000")                           # the cursor wanders while mouse turning is off
+    tick(lua, 2)
+    slash(lua, "mouse on")
+    a0 = w.player.ang
+    tick(lua, 3)
+    assert w.player.ang == pytest.approx(a0)                        # the first frame only notes where the cursor is
+    lua.execute("CURSOR[1] = 500 + 1100")
+    tick(lua, 1)
+    assert w.player.ang - a0 == pytest.approx(100 * 0.0035)
+
+
+def test_cursor_movement_on_the_end_screen_does_not_turn_you_when_play_resumes():
+    lua, ns, G = start()
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    G.stage = "dead"
+    tick(lua, 2)
+    lua.execute("CURSOR[1] = 500 + 800")                            # clicking around the death screen
+    tick(lua, 2)
+    G.stage = "play"
+    a0 = w.player.ang
+    tick(lua, 3)
+    assert w.player.ang == pytest.approx(a0)
