@@ -495,3 +495,64 @@ def test_report_after_a_speed_test_is_the_speed_report_not_the_old_game_report()
     slash(lua, "report")
     edits = [o for o in lua.eval("ALL").values() if o.kind == "EditBox"]
     assert "GAUNTLET REPORT" in str(edits[-1].text) and "GAME REPORT" not in str(edits[-1].text)
+
+
+# ---------------------------------------------------------------- true mouse look
+LOOK = """
+FACING = 1.0
+LOOKING = false
+MOUSE = false
+function GetPlayerFacing() return FACING end
+function MouselookStart() LOOKING = true end
+function MouselookStop() LOOKING = false end
+function IsMouseButtonDown(b) return MOUSE and b == "LeftButton" end
+"""
+
+
+def test_mouse_look_turns_the_view_by_exactly_how_far_the_mouse_turned_you():
+    lua, ns, G = start(LOOK)
+    tick(lua, 2)
+    assert lua.eval("LOOKING") is True
+    a0 = G.w.player.ang
+    lua.execute("FACING = FACING - 0.25")            # turned right by a quarter radian
+    tick(lua, 1)
+    assert abs((G.w.player.ang - a0) - 0.25) < 1e-6
+    lua.execute("FACING = FACING + 0.10")            # and back left a little
+    tick(lua, 1)
+    assert abs((G.w.player.ang - a0) - 0.15) < 1e-6
+
+
+def test_mouse_look_wraps_around_north_and_does_not_spin():
+    lua, ns, G = start(LOOK)
+    lua.execute("FACING = 0.05")
+    tick(lua, 2)
+    a0 = G.w.player.ang
+    lua.execute("FACING = 2 * math.pi - 0.05")       # crossed north turning right: a 0.1 turn, not a full circle
+    tick(lua, 1)
+    assert abs((G.w.player.ang - a0) - 0.10) < 1e-6
+
+
+def test_mouse_look_lets_go_on_the_end_screen_and_when_the_window_closes_and_a_held_click_fires():
+    lua, ns, G = start(LOOK)
+    tick(lua, 2)
+    assert lua.eval("LOOKING") is True
+    lua.execute("MOUSE = true")
+    n = G.w.player.ammo.bullets
+    tick(lua, 20)
+    assert G.w.player.ammo.bullets < n              # holding the button fires, though the frame never sees a click
+    lua.execute("MOUSE = false")
+    G.stage = "dead"
+    tick(lua, 1)
+    assert lua.eval("LOOKING") is False             # the cursor comes back so you can click
+    G.stage = "play"
+    tick(lua, 1)
+    assert lua.eval("LOOKING") is True
+    ns.Main.stop()
+    assert lua.eval("LOOKING") is False
+
+
+def test_mouse_look_off_falls_back_to_the_cursor_and_never_starts_mouselook():
+    lua, ns, G = start(LOOK)
+    slash(lua, "mouse edge")
+    tick(lua, 3)
+    assert lua.eval("LOOKING") is False
