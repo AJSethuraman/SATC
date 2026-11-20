@@ -14,10 +14,14 @@ Render.FLASH = "Interface\\Cooldown\\star4"
 
 local function try(fn, ...) return pcall(fn, ...) end
 
+Render.WALLS = nil                           -- wall kind -> { file, color }; the game sets this to Rules.WALLS, the test level to Level.WALLS
+Render.MAXMODELS, Render.MAXSPR = 12, 48
+Render.ANIM = { STAND = 0, DEATH = 1, RUN = 5, ATTACK = 16 }
+
 -- Build the window: a frame with the view inside it, the column pool, the model pool, the weapon and the text. Returns the state.
-function Render.build()
+function Render.build(name)
   local R = { n = 160, cols = {}, models = {}, wall_ok = {}, shown_models = 0 }
-  local f = CreateFrame("Frame", "GauntletFrame", UIParent, "BackdropTemplate")
+  local f = CreateFrame("Frame", name or "GauntletFrame", UIParent, "BackdropTemplate")
   f:SetSize(Render.VW + 16, Render.VH + 64)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
@@ -48,7 +52,7 @@ function Render.build()
   R.cross = v:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   R.cross:SetPoint("CENTER"); R.cross:SetText("+")
   R.weapon = v:CreateTexture(nil, "OVERLAY")
-  R.weapon:SetSize(170, 170); R.weapon:SetPoint("BOTTOM", v, "BOTTOM", 0, 0)
+  R.weapon:SetSize(120, 120); R.weapon:SetPoint("BOTTOM", v, "BOTTOM", 0, 0)
   try(R.weapon.SetTexture, R.weapon, Render.WEAPON)
   R.flash = v:CreateTexture(nil, "OVERLAY")
   R.flash:SetSize(90, 90); R.flash:SetPoint("BOTTOM", v, "BOTTOM", 0, 120); R.flash:SetBlendMode("ADD")
@@ -69,7 +73,8 @@ end
 
 -- Give a wall kind's texture to a column, or its plain colour if the texture would not take. Done only when the column's kind changes.
 local function dress(R, c, id)
-  local w = ns.Level.WALLS[id] or ns.Level.WALLS[1]
+  local walls = Render.WALLS or ns.Level.WALLS
+  local w = walls[id] or walls[1]
   c.id = id
   if R.wall_ok[id] ~= false then
     local ok = try(c.tex.SetTexture, c.tex, w.file)
@@ -153,6 +158,118 @@ function Render.weapon(R, walking_t, kick)
   R.weapon:ClearAllPoints()
   R.weapon:SetPoint("BOTTOM", R.view, "BOTTOM", math.sin(walking_t * 4) * 6, bob - (kick or 0) * 14)
   if (kick or 0) > 0.5 then R.flash:Show() else R.flash:Hide() end
+end
+
+---------------------------------------------------------------- the game's enemies and things
+
+-- Is this spot (given its column and depth) in view and not hidden behind a nearer wall?
+local function visible(R, cols, col, depth)
+  if not col or depth >= 24 then return false end
+  local ci = math.max(1, math.min(R.n, math.floor(col + 0.5)))
+  local k = cols[ci]
+  return k ~= nil and (k.id == 0 or k.dist > depth - 0.3)
+end
+
+-- The nearest few enemies get a model frame each and keep it while they stay among the nearest, so a model is loaded once and not every frame.
+function Render.game_models(R, x, y, ang, cols, enemies, now)
+  R.pool = R.pool or {}
+  for i = 1, Render.MAXMODELS do
+    if not R.pool[i] then
+      local m = CreateFrame("PlayerModel", nil, R.view)
+      m:Hide()
+      m.owner, m.anim = false, false                          -- false, not nil: a field that is not there must read as "no owner"
+      R.pool[i] = m
+    end
+  end
+  local cand = {}
+  for _, e in ipairs(enemies) do
+    if not (e.dead and now - (e.died or 0) > 4) then
+      local col, depth = ns.Ray.sprite(x, y, ang, Render.FOV, R.n, e.x, e.y)
+      if visible(R, cols, col, depth) then cand[#cand + 1] = { e = e, col = col, depth = depth } end
+    end
+  end
+  table.sort(cand, function(a, b) return a.depth < b.depth end)
+  local want, have = {}, {}
+  for i = 1, math.min(Render.MAXMODELS, #cand) do want[cand[i].e] = cand[i] end
+  for i = 1, Render.MAXMODELS do
+    local m = R.pool[i]
+    if m.owner and not want[m.owner] then m.owner = false; m:Hide() end
+    if m.owner then have[m.owner] = m end
+  end
+  for i = 1, math.min(Render.MAXMODELS, #cand) do
+    local e = cand[i].e
+    if not have[e] then
+      for j = 1, Render.MAXMODELS do
+        local m = R.pool[j]
+        if not m.owner then
+          m.owner, m.anim = e, false
+          m.ok = try(m.SetCreature, m, e.def.cid)
+          have[e] = m
+          break
+        end
+      end
+    end
+  end
+  local colw, vh = Render.VW / R.n, Render.VH
+  local shown = 0
+  for i = 1, Render.MAXMODELS do
+    local m = R.pool[i]
+    local c = m.owner and want[m.owner]
+    if c then
+      local e = c.e
+      local size = vh / c.depth * 0.85 * (e.def.scale or 1)
+      m:SetSize(size * 0.8, size)
+      m:ClearAllPoints()
+      m:SetPoint("BOTTOM", R.view, "BOTTOMLEFT", (c.col - 0.5) * colw, vh / 2 - vh / (2 * c.depth))
+      m:SetFrameLevel(R.view:GetFrameLevel() + 20 + math.max(0, 200 - math.floor(c.depth * 8)))
+      local alpha = e.flash and e.flash > 0 and 0.5 or 1
+      if e.dead then alpha = math.max(0, math.min(1, (4 - (now - (e.died or 0))) / 2)) end
+      m:SetAlpha(alpha)
+      local want_anim = e.dead and Render.ANIM.DEATH or ((e.windup or (e.cool or 0) > (e.def.cool or 1) - 0.3 and e.state == "chase") and Render.ANIM.ATTACK)
+                        or (e.moving and Render.ANIM.RUN) or Render.ANIM.STAND
+      if m.anim ~= want_anim then m.anim = want_anim; try(m.SetAnimation, m, want_anim) end
+      m:Show()
+      shown = shown + 1
+    end
+  end
+  R.shown_models = shown
+end
+
+-- The weapon in your hands: its icon.
+function Render.set_weapon(R, icon)
+  if R.weapon_icon ~= icon then R.weapon_icon = icon; try(R.weapon.SetTexture, R.weapon, "Interface\\Icons\\" .. icon); if R.weapon.SetTexCoord then R.weapon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end end
+end
+
+-- Flat things standing in the level (pickups, fireballs, the exit): icons sized by distance. list: { x, y, icon, size, lift, tint }.
+function Render.sprites(R, x, y, ang, cols, list)
+  R.spr = R.spr or {}
+  local cand = {}
+  for _, s in ipairs(list) do
+    local col, depth = ns.Ray.sprite(x, y, ang, Render.FOV, R.n, s.x, s.y)
+    if visible(R, cols, col, depth) then cand[#cand + 1] = { s = s, col = col, depth = depth } end
+  end
+  table.sort(cand, function(a, b) return a.depth > b.depth end)            -- far ones first, so near ones draw over them
+  local colw, vh = Render.VW / R.n, Render.VH
+  local used = 0
+  for i = 1, math.min(Render.MAXSPR, #cand) do
+    local c = cand[i]
+    local t = R.spr[i]
+    if not t then
+      t = R.view:CreateTexture(nil, "OVERLAY")
+      R.spr[i] = t
+    end
+    if t.icon ~= c.s.icon then t.icon = c.s.icon; try(t.SetTexture, t, "Interface\\Icons\\" .. c.s.icon) end
+    local size = math.max(6, vh / c.depth * (c.s.size or 0.3))
+    t:SetSize(size, size)
+    t:ClearAllPoints()
+    t:SetPoint("BOTTOM", R.view, "BOTTOMLEFT", (c.col - 0.5) * colw, vh / 2 - vh / (2 * c.depth) + (c.s.lift or 0) * vh / c.depth)
+    local tint = c.s.tint
+    if tint then t:SetVertexColor(tint[1], tint[2], tint[3]) else t:SetVertexColor(1, 1, 1) end
+    t:Show()
+    used = i
+  end
+  for i = used + 1, #R.spr do R.spr[i]:Hide() end
+  R.shown_sprites = used
 end
 
 return Render

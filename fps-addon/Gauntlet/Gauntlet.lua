@@ -276,10 +276,8 @@ function Gauntlet.report_text()
   return GauntletDB and GauntletDB.report or nil
 end
 
--- The report in a box to select and copy.
-function Gauntlet.copy_report()
-  local text = Gauntlet.report_text()
-  if not text then say("no report yet: type /gaunt first") return false end
+-- Some text in a box to select and copy.
+function Gauntlet.copy_text(text)
   local box = CreateFrame("Frame", "GauntletCopy", UIParent, "BackdropTemplate")
   box:SetSize(560, 340); box:SetPoint("CENTER"); box:SetFrameStrata("TOOLTIP")
   if box.SetBackdrop then box:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) end
@@ -297,18 +295,11 @@ function Gauntlet.copy_report()
   return true
 end
 
-SLASH_GAUNTLET1 = "/gaunt"
-SlashCmdList.GAUNTLET = function(arg)
-  arg = (arg or ""):lower():match("^%s*(.-)%s*$")
-  if arg == "" then Gauntlet.run()
-  elseif arg == "walk" then Gauntlet.walk()
-  elseif arg == "report" then Gauntlet.copy_report()
-  elseif arg == "stop" then Gauntlet.stop()
-  elseif arg:match("^mouse") then
-    local w = arg:match("^mouse%s+(%a+)")
-    if w == "on" then Gauntlet.mouse = true elseif w == "off" then Gauntlet.mouse = false end
-    say("mouse turning: " .. (Gauntlet.mouse and "on" or "off"))
-  else say("/gaunt (the tests, then walk) | /gaunt walk | /gaunt report | /gaunt mouse on|off | /gaunt stop") end
+-- The test report in a box.
+function Gauntlet.copy_report()
+  local text = Gauntlet.report_text()
+  if not text then say("no report yet: type /gaunt test first") return false end
+  return Gauntlet.copy_text(text)
 end
 
 return Gauntlet

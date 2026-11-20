@@ -62,7 +62,7 @@ def boot(prelude=""):
     lua.execute(MOCK + "\n" + prelude)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Gauntlet', ns) end")
-    for f in ("Ray", "Level", "Bench", "Render", "Gauntlet"):
+    for f in ("Ray", "Level", "Rules", "Nav", "Gen", "Play", "Bench", "Render", "Gauntlet", "Main"):
         ld(str(G / f"{f}.lua"), ns)
     return lua, ns
 
@@ -447,4 +447,4 @@ def test_the_report_command_opens_a_box_with_the_report_and_says_so_when_there_i
 def test_the_slash_command_with_anything_else_lists_the_commands():
     lua, ns = boot()
     lua.eval("SlashCmdList.GAUNTLET")("what")
-    assert any("/gaunt walk" in m for m in said(lua))
+    assert any("/gaunt test" in m for m in said(lua))

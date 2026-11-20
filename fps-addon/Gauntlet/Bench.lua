@@ -57,8 +57,9 @@ function Bench.report(results, assets, extra)
     add(string.format("  %3d columns   %3d fps average   %3d lowest   %3d in the slowest 1%%   %s", r.columns, math.floor(r.avg + 0.5), math.floor(r.min + 0.5), math.floor(r.low + 0.5),
         (r.avg >= Bench.PASS_FPS and r.low >= Bench.LOW_FPS) and "holds 60" or "too slow"))
   end
+  if #(results or {}) == 0 then add("  not run (type /gaunt test, wait for it to finish, then /reload)") end
   local v = Bench.verdict(results or {})
-  add("  verdict: " .. v.word .. (v.best and (" (use " .. v.best .. " columns)") or ""))
+  if #(results or {}) > 0 then add("  verdict: " .. v.word .. (v.best and (" (use " .. v.best .. " columns)") or "")) end
   if assets then
     add("")
     add("TEST 2: assets")
@@ -73,6 +74,48 @@ function Bench.report(results, assets, extra)
     add("")
     for _, n in ipairs(extra.notes) do add(n) end
   end
+  return table.concat(out, "\n")
+end
+
+-- The report of a play session: how long each level took, what killed you, what you used, how it ran. run is Main's record.
+local function mmss(sec) sec = math.floor(sec) return string.format("%d:%02d", math.floor(sec / 60), sec % 60) end
+function Bench.game_report(run, extra)
+  extra = extra or {}
+  local out = {}
+  local function add(t) out[#out + 1] = t end
+  local fps = (run.fps_n or 0) > 0 and math.floor(run.fps_sum / run.fps_n + 0.5) or 0
+  add(string.format("GAUNTLET GAME REPORT   build %s   played %s   fps avg %d, lowest %d   columns %s", tostring(extra.build or "?"), mmss(run.play or 0), fps,
+      run.fps_min and math.floor(run.fps_min) or 0, tostring(extra.columns or "?")))
+  add("")
+  add("LEVELS (time, kills, pickups, deaths)")
+  local ns_ = {}
+  for n in pairs(run.levels or {}) do ns_[#ns_ + 1] = n end
+  table.sort(ns_)
+  for _, n in ipairs(ns_) do
+    local l = run.levels[n]
+    add(string.format("  %d %-22s %6s  kills %2d/%2d  pickups %2d/%2d  deaths %d%s", n, tostring(l.name), mmss(l.time or 0), l.kills or 0, l.total or 0, l.picked or 0, l.pickups or 0, l.deaths or 0,
+        l.done and "  done" or ""))
+  end
+  add("")
+  add("DEATHS: " .. #(run.deaths or {}))
+  for i, d in ipairs(run.deaths or {}) do
+    add(string.format("  #%d  level %d at %s: %s", i, d.level, mmss(d.at or 0), d.hits or "?"))
+  end
+  local hb = {}
+  for name, v in pairs(run.hurt_by or {}) do hb[#hb + 1] = { name = name, v = v } end
+  table.sort(hb, function(a, b) if a.v ~= b.v then return a.v > b.v end return a.name < b.name end)
+  local parts = {}
+  for _, h in ipairs(hb) do parts[#parts + 1] = string.format("%s %d", h.name, math.floor(h.v + 0.5)) end
+  add("DAMAGE TAKEN FROM: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing"))
+  local sh = {}
+  for name, v in pairs(run.shots or {}) do sh[#sh + 1] = { name = name, v = v } end
+  table.sort(sh, function(a, b) if a.v ~= b.v then return a.v > b.v end return a.name < b.name end)
+  parts = {}
+  for _, h in ipairs(sh) do parts[#parts + 1] = h.name .. " " .. h.v end
+  add("SHOTS FIRED: " .. (#parts > 0 and table.concat(parts, ", ") or "none"))
+  add("SCREENSHOTS: " .. (run.shots_taken or 0))
+  add("ERRORS: " .. (#(run.errors or {}) == 0 and "none" or ""))
+  for _, e in ipairs(run.errors or {}) do add(string.format("  x%d: %s", e.n, e.msg)) end
   return table.concat(out, "\n")
 end
 
