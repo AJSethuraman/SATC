@@ -38,10 +38,19 @@ function Render.build(name)
   v:SetSize(Render.VW, Render.VH)
   v:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -26)
   R.view = v
-  R.ceiling = v:CreateTexture(nil, "BACKGROUND")
-  R.ceiling:SetPoint("TOPLEFT"); R.ceiling:SetSize(Render.VW, Render.VH / 2); R.ceiling:SetColorTexture(0.1, 0.09, 0.12, 1)
-  R.floor = v:CreateTexture(nil, "BACKGROUND")
-  R.floor:SetPoint("BOTTOMLEFT"); R.floor:SetSize(Render.VW, Render.VH / 2); R.floor:SetColorTexture(0.2, 0.17, 0.13, 1)
+  -- ceiling and floor in bands, dark at the far edge of the room and lighter near you, so the room has depth
+  R.bands = {}
+  local NB = 8
+  for i = 1, NB do
+    local k = (i - 1) / (NB - 1)                    -- 0 at the top or bottom edge of the view (near you), 1 at the horizon (far)
+    local c = v:CreateTexture(nil, "BACKGROUND")
+    c:SetPoint("TOPLEFT", v, "TOPLEFT", 0, -(i - 1) * Render.VH / 2 / NB); c:SetSize(Render.VW, Render.VH / 2 / NB + 1)
+    c:SetColorTexture(0.05 + 0.07 * (1 - k), 0.05 + 0.06 * (1 - k), 0.08 + 0.08 * (1 - k), 1)   -- lighter overhead, dark far away
+    local f = v:CreateTexture(nil, "BACKGROUND")
+    f:SetPoint("BOTTOMLEFT", v, "BOTTOMLEFT", 0, (i - 1) * Render.VH / 2 / NB); f:SetSize(Render.VW, Render.VH / 2 / NB + 1)
+    f:SetColorTexture(0.07 + 0.16 * (1 - k), 0.06 + 0.13 * (1 - k), 0.05 + 0.10 * (1 - k), 1)   -- lighter underfoot, dark far away
+    R.bands[#R.bands + 1] = c; R.bands[#R.bands + 1] = f
+  end
   for i = 1, Render.MAXCOLS do
     local t = v:CreateTexture(nil, "ARTWORK")
     t:Hide()
@@ -51,11 +60,16 @@ function Render.build(name)
   R.hud:SetPoint("BOTTOMLEFT", 10, 8)
   R.cross = v:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   R.cross:SetPoint("CENTER"); R.cross:SetText("+")
-  R.weapon = v:CreateTexture(nil, "OVERLAY")
-  R.weapon:SetSize(120, 120); R.weapon:SetPoint("BOTTOM", v, "BOTTOM", 0, 0)
-  try(R.weapon.SetTexture, R.weapon, Render.WEAPON)
+  -- the weapon is drawn as a first-person gun from plain coloured blocks (a sleeve, a grip, a barrel), held low and to the right
+  R.weapon = CreateFrame("Frame", nil, v)
+  R.weapon:SetSize(160, 170); R.weapon:SetPoint("BOTTOM", v, "BOTTOM", 70, 0)
+  R.parts = {}
+  for i = 1, 9 do
+    local t = R.weapon:CreateTexture(nil, "OVERLAY")
+    t:Hide(); R.parts[i] = t
+  end
   R.flash = v:CreateTexture(nil, "OVERLAY")
-  R.flash:SetSize(90, 90); R.flash:SetPoint("BOTTOM", v, "BOTTOM", 0, 120); R.flash:SetBlendMode("ADD")
+  R.flash:SetSize(110, 110); R.flash:SetPoint("BOTTOM", v, "BOTTOM", 70, 150); R.flash:SetBlendMode("ADD")
   try(R.flash.SetTexture, R.flash, Render.FLASH)
   R.flash:Hide()
   R.msg = v:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -156,7 +170,7 @@ end
 function Render.weapon(R, walking_t, kick)
   local bob = math.sin(walking_t * 8) * 4
   R.weapon:ClearAllPoints()
-  R.weapon:SetPoint("BOTTOM", R.view, "BOTTOM", math.sin(walking_t * 4) * 6, bob - (kick or 0) * 14)
+  R.weapon:SetPoint("BOTTOM", R.view, "BOTTOM", 70 + math.sin(walking_t * 4) * 6, bob - (kick or 0) * 14)
   if (kick or 0) > 0.5 then R.flash:Show() else R.flash:Hide() end
 end
 
@@ -235,9 +249,30 @@ function Render.game_models(R, x, y, ang, cols, enemies, now)
   R.shown_models = shown
 end
 
--- The weapon in your hands: its icon.
+-- Gun shapes: { x, y, width, height, red, green, blue } in a 160 x 170 box, from its bottom left. Drawn back to front.
+local SLEEVE, SKIN, STEEL, DARK, WOOD, BRASS, OLIVE = { 0.35, 0.22, 0.12 }, { 0.80, 0.62, 0.48 }, { 0.50, 0.52, 0.56 }, { 0.22, 0.23, 0.26 }, { 0.38, 0.22, 0.10 }, { 0.78, 0.60, 0.20 }, { 0.30, 0.36, 0.20 }
+local function R7(x, y, w, h, c) return { x, y, w, h, c[1], c[2], c[3] } end
+Render.GUNS = {
+  INV_Weapon_Rifle_01 = { R7(50, 0, 80, 56, SLEEVE), R7(62, 44, 40, 36, SKIN), R7(66, 56, 30, 40, WOOD), R7(56, 90, 50, 26, STEEL), R7(68, 112, 26, 54, DARK), R7(76, 160, 10, 8, STEEL) },
+  INV_Weapon_Rifle_06 = { R7(44, 0, 92, 56, SLEEVE), R7(56, 44, 44, 34, SKIN), R7(60, 60, 36, 36, WOOD), R7(52, 88, 54, 24, BRASS), R7(60, 110, 40, 44, DARK), R7(46, 150, 68, 16, STEEL) },
+  INV_Weapon_Rifle_04 = { R7(50, 0, 84, 56, SLEEVE), R7(64, 44, 38, 34, SKIN), R7(66, 58, 30, 38, WOOD), R7(52, 92, 56, 22, STEEL), R7(34, 80, 30, 32, BRASS), R7(70, 112, 18, 54, DARK), R7(74, 160, 10, 8, BRASS) },
+  INV_Misc_Bomb_02 = { R7(40, 0, 100, 56, SLEEVE), R7(52, 44, 48, 34, SKIN), R7(34, 70, 92, 80, OLIVE), R7(40, 150, 80, 16, DARK), R7(70, 78, 20, 16, STEEL), R7(56, 90, 12, 50, DARK) },
+}
+
+-- The weapon in your hands: draw its shape (the icon name picks it, and is what the game asks for).
 function Render.set_weapon(R, icon)
-  if R.weapon_icon ~= icon then R.weapon_icon = icon; try(R.weapon.SetTexture, R.weapon, "Interface\\Icons\\" .. icon); if R.weapon.SetTexCoord then R.weapon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end end
+  if R.weapon_icon == icon then return end
+  R.weapon_icon = icon
+  local shape = Render.GUNS[icon] or Render.GUNS.INV_Weapon_Rifle_01
+  for i, t in ipairs(R.parts) do
+    local p = shape[i]
+    if p then
+      t:ClearAllPoints(); t:SetPoint("BOTTOMLEFT", R.weapon, "BOTTOMLEFT", p[1], p[2]); t:SetSize(p[3], p[4])
+      t:SetColorTexture(p[5], p[6], p[7], 1); t:Show()
+    else
+      t:Hide()
+    end
+  end
 end
 
 -- Flat things standing in the level (pickups, fireballs, the exit): icons sized by distance. list: { x, y, icon, size, lift, tint }.

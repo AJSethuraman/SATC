@@ -11,12 +11,12 @@ local G                                -- the game's own state: stage, world, ru
 local colbuf = {}
 
 Main.COLUMNS = 320
-Main.SCALE = 1.5
+Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N sets it
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
-Main.look = true
+Main.look = false        -- true mouse look is opt-in (/gaunt mouse look): it depends on the client reporting your facing
 
-local TURN, KEYTURN, DEAD, SPEED = 3.0, 2.3, 0.12, 3.4
+local TURN, KEYTURN, DEAD, SPEED = 5.0, 2.3, 0.08, 3.4
 local KEYS = { W = true, A = true, S = true, D = true, Q = true, E = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, SPACE = true,
                ["1"] = true, ["2"] = true, ["3"] = true, ["4"] = true, ENTER = true }
 
@@ -262,7 +262,7 @@ local function mouse_turn()
   if not (mx and cx) then return 0 end
   local off = (mx / scale - cx) / (Render.VW / 2)
   if math.abs(off) < DEAD or math.abs(off) > 1 then return 0 end
-  return off * TURN
+  return (off * 0.5 + off * math.abs(off) * 0.5) * TURN      -- gentle near the middle, quick toward the edge
 end
 
 local function play_frame(dt)
@@ -348,7 +348,7 @@ end
 local function ensure_window()
   if R then return end
   R = Render.build("GauntletGameFrame")
-  if R.frame.SetScale then R.frame:SetScale(Main.SCALE) end
+  if R.frame.SetScale then R.frame:SetScale(Main.scale()) end
   build_hud()
   R.frame:SetScript("OnUpdate", on_update)
   R.frame:SetScript("OnKeyDown", function(self, key)
@@ -398,6 +398,15 @@ function Main.start(fresh)
   end
 end
 
+-- The window's scale: what you set, or the largest that fits the screen (the view is 16:9, so it fills most of it).
+function Main.scale()
+  if Main.SCALE then return Main.SCALE end
+  local uw = UIParent and UIParent.GetWidth and UIParent:GetWidth()
+  local uh = UIParent and UIParent.GetHeight and UIParent:GetHeight()
+  if type(uw) ~= "number" or type(uh) ~= "number" or uw <= 0 or uh <= 0 then return 1.5 end
+  return math.max(1, math.min(3, uw * 0.94 / (Render.VW + 16), uh * 0.92 / (Render.VH + 64)))
+end
+
 function Main.stop()
   if G then mouselook(false) end
   if G and G.run then save_report() end
@@ -433,10 +442,10 @@ SlashCmdList.GAUNTLET = function(arg)
     if text then Gauntlet.copy_text(text) else say("no report yet: play first with /gaunt") end
   elseif arg == "stop" then Main.stop(); if Gauntlet then Gauntlet.stop() end
   elseif arg:match("^scale") then
-    local n = tonumber(arg:match("^scale%s+([%d%.]+)")) or Main.SCALE
-    Main.SCALE = math.max(0.6, math.min(2.5, n))
-    if R and R.frame.SetScale then R.frame:SetScale(Main.SCALE) end
-    say("scale: " .. Main.SCALE)
+    local n = tonumber(arg:match("^scale%s+([%d%.]+)"))
+    Main.SCALE = n and math.max(0.6, math.min(3, n)) or nil
+    if R and R.frame.SetScale then R.frame:SetScale(Main.scale()) end
+    say("scale: " .. (Main.SCALE and tostring(Main.SCALE) or "fit to screen"))
   elseif arg:match("^cols") then say("columns: " .. Main.set_columns(arg:match("^cols%s+(%d+)")))
   elseif arg:match("^shots") then
     local on = arg:match("^shots%s+(%a+)")
@@ -446,7 +455,8 @@ SlashCmdList.GAUNTLET = function(arg)
     local w = arg:match("^mouse%s+(%a+)")
     if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false; if G then mouselook(false) end
     elseif w == "edge" then Main.mouse = true; Main.look = false; if G then mouselook(false) end
-    elseif w == "look" then Main.mouse = true; Main.look = true end
+    elseif w == "look" then Main.mouse = true; Main.look = true
+    elseif w == "debug" then say(string.format("facing %s  cursor %s  looking %s", tostring(GetPlayerFacing and GetPlayerFacing()), tostring(GetCursorPosition and (GetCursorPosition())), tostring(G and G.looking))) end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
   else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off | /gaunt test (speed and asset tests) | /gaunt stop") end

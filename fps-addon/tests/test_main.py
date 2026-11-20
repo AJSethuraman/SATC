@@ -129,7 +129,7 @@ def test_the_mouse_turns_by_how_far_the_cursor_is_from_the_middle():
     assert w.player.ang == pytest.approx(a0)                              # dead zone
     lua.execute("CURSOR[1] = 500 + 160")
     tick(lua, 75)
-    assert w.player.ang == pytest.approx(a0 + 1.5, abs=0.05)
+    assert w.player.ang == pytest.approx(a0 + 1.875, abs=0.05)     # half way out: 5 * (0.5*0.5 + 0.5*0.25)
     slash(lua, "mouse off")
     a1 = w.player.ang
     tick(lua, 30)
@@ -511,6 +511,7 @@ function IsMouseButtonDown(b) return MOUSE and b == "LeftButton" end
 
 def test_mouse_look_turns_the_view_by_exactly_how_far_the_mouse_turned_you():
     lua, ns, G = start(LOOK)
+    slash(lua, "mouse look")
     tick(lua, 2)
     assert lua.eval("LOOKING") is True
     a0 = G.w.player.ang
@@ -524,6 +525,7 @@ def test_mouse_look_turns_the_view_by_exactly_how_far_the_mouse_turned_you():
 
 def test_mouse_look_wraps_around_north_and_does_not_spin():
     lua, ns, G = start(LOOK)
+    slash(lua, "mouse look")
     lua.execute("FACING = 0.05")
     tick(lua, 2)
     a0 = G.w.player.ang
@@ -534,6 +536,7 @@ def test_mouse_look_wraps_around_north_and_does_not_spin():
 
 def test_mouse_look_lets_go_on_the_end_screen_and_when_the_window_closes_and_a_held_click_fires():
     lua, ns, G = start(LOOK)
+    slash(lua, "mouse look")
     tick(lua, 2)
     assert lua.eval("LOOKING") is True
     lua.execute("MOUSE = true")
@@ -553,6 +556,7 @@ def test_mouse_look_lets_go_on_the_end_screen_and_when_the_window_closes_and_a_h
 
 def test_mouse_look_off_falls_back_to_the_cursor_and_never_starts_mouselook():
     lua, ns, G = start(LOOK)
+    slash(lua, "mouse look")
     slash(lua, "mouse edge")
     tick(lua, 3)
     assert lua.eval("LOOKING") is False
@@ -560,6 +564,7 @@ def test_mouse_look_off_falls_back_to_the_cursor_and_never_starts_mouselook():
 
 def test_when_the_client_hides_your_facing_the_cursor_turn_takes_over_and_mouselook_lets_go():
     lua, ns, G = start(LOOK)
+    slash(lua, "mouse look")
     tick(lua, 2)
     assert lua.eval("LOOKING") is True
     lua.execute("GetPlayerFacing = function() return nil end")      # inside an instance
@@ -567,3 +572,37 @@ def test_when_the_client_hides_your_facing_the_cursor_turn_takes_over_and_mousel
     a0 = G.w.player.ang
     tick(lua, 3)
     assert lua.eval("LOOKING") is False                              # the cursor is back, not stuck hidden
+
+
+# ---------------------------------------------------------------- the view
+def test_the_gun_is_drawn_as_a_first_person_shape_that_changes_with_the_weapon_and_sits_low_and_right():
+    lua, ns, G = start()
+    R = ns.Main.render()
+    shown = lambda: sum(1 for t in R.parts.values() if t.shown)
+    assert shown() == 6                                    # the pistol: sleeve, hand, grip, body, barrel, sight
+    G.w.player.weapons[4], G.w.player.ammo.rockets = True, 5
+    ns.Play.select(G.w, 4)
+    tick(lua, 1)
+    assert R.weapon_icon == "INV_Misc_Bomb_02" and shown() == 6
+    assert R.weapon.pts.x >= 60                            # held to the right of the middle
+
+
+def test_the_default_does_not_start_mouselook_and_the_window_fits_the_screen():
+    lua, ns, G = start(LOOK + "UIParent.GetWidth = function() return 1600 end; UIParent.GetHeight = function() return 900 end")
+    tick(lua, 3)
+    assert lua.eval("LOOKING") is False
+    s = ns.Main.scale()
+    assert s == pytest.approx(900 * 0.92 / 424)             # the height is the tighter side
+    slash(lua, "scale 1.2")
+    assert ns.Main.scale() == pytest.approx(1.2)
+    slash(lua, "scale")
+    assert ns.Main.scale() == pytest.approx(s)
+
+
+def test_floor_and_ceiling_get_darker_toward_the_horizon():
+    lua, ns, G = start()
+    R = ns.Main.render()
+    bands = [R.bands[i] for i in range(1, 17)]                     # ceiling, floor, ceiling, floor ... from the screen edge inward
+    def shade(b): return float(b.flat[1])
+    ceil, floor = bands[0::2], bands[1::2]
+    assert shade(ceil[0]) > shade(ceil[-1]) and shade(floor[0]) > shade(floor[-1])
