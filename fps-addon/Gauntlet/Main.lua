@@ -14,6 +14,7 @@ Main.COLUMNS = 320
 Main.SCALE = 1.5
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
+Main.look = true
 
 local TURN, KEYTURN, DEAD, SPEED = 3.0, 2.3, 0.12, 3.4
 local KEYS = { W = true, A = true, S = true, D = true, Q = true, E = true, LEFT = true, RIGHT = true, UP = true, DOWN = true, SPACE = true,
@@ -231,6 +232,28 @@ function Main.advance()
 end
 
 ---------------------------------------------------------------- the clock
+-- True mouse look: the client's own mouselook turns the player with the mouse; the change in GetPlayerFacing each frame is how far
+-- you turned, so the view follows the mouse exactly (no cursor to run out of screen). Falls back to the cursor-offset turn.
+-- Instances hide the facing (it comes back nil), so look only when a value is really available.
+local function look_on() return Main.mouse and Main.look and MouselookStart and GetPlayerFacing and GetPlayerFacing() ~= nil end
+
+local function look_turn()
+  local f = GetPlayerFacing()
+  if not f then return 0 end
+  local last = G.face
+  G.face = f
+  if not last then return 0 end
+  local d = f - last
+  if d > math.pi then d = d - 2 * math.pi elseif d < -math.pi then d = d + 2 * math.pi end
+  return -d                                   -- facing grows turning left; our angle grows turning right
+end
+
+local function mouselook(on)
+  if not (MouselookStart and MouselookStop) then return end
+  if on and not G.looking then MouselookStart(); G.looking = true; G.face = nil
+  elseif not on and G.looking then MouselookStop(); G.looking = false end
+end
+
 local function mouse_turn()
   if not (Main.mouse and GetCursorPosition) then return 0 end
   local mx = GetCursorPosition()
@@ -248,10 +271,12 @@ local function play_frame(dt)
   local fwd = (k.W and 1 or 0) - (k.S and 1 or 0) + (k.UP and 1 or 0) - (k.DOWN and 1 or 0)
   local side = (k.D and 1 or 0) - (k.A and 1 or 0)
   local turn = (k.E and 1 or 0) - (k.Q and 1 or 0) + (k.RIGHT and 1 or 0) - (k.LEFT and 1 or 0)
-  p.ang = p.ang + turn * KEYTURN * dt + mouse_turn() * dt
+  p.ang = p.ang + turn * KEYTURN * dt
+  if look_on() then mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); p.ang = p.ang + mouse_turn() * dt end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
-  if k.SPACE or G.mouse_down then Play.fire(w) end
+  local held = G.mouse_down or (G.looking and IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
+  if k.SPACE or held then Play.fire(w) end
   Play.step(w, dt)
   local evs = w.events
   w.events = {}
@@ -273,6 +298,7 @@ local function frame_body(dt)
     r.fps_n, r.fps_sum = r.fps_n + 1, r.fps_sum + fps
     r.fps_min = (r.fps_min == nil or fps < r.fps_min) and fps or r.fps_min
   end
+  if G.stage ~= "play" then mouselook(false) end        -- end screens need a visible cursor to click
   if G.stage == "play" then
     play_frame(dt)
     if G.w.over and G.stage == "play" then died() end
@@ -373,6 +399,7 @@ function Main.start(fresh)
 end
 
 function Main.stop()
+  if G then mouselook(false) end
   if G and G.run then save_report() end
   if R then R.frame:Hide() end
 end
@@ -417,10 +444,12 @@ SlashCmdList.GAUNTLET = function(arg)
     say("automatic screenshots: " .. (db().shots == false and "off" or "on"))
   elseif arg:match("^mouse") then
     local w = arg:match("^mouse%s+(%a+)")
-    if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false end
+    if w == "on" then Main.mouse = true elseif w == "off" then Main.mouse = false; if G then mouselook(false) end
+    elseif w == "edge" then Main.mouse = true; Main.look = false; if G then mouselook(false) end
+    elseif w == "look" then Main.mouse = true; Main.look = true end
     if ns.Gauntlet then ns.Gauntlet.mouse = Main.mouse end
     say("mouse turning: " .. (Main.mouse and "on" or "off"))
-  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse on|off | /gaunt test (speed and asset tests) | /gaunt stop") end
+  else say("/gaunt (play) | /gaunt new | /gaunt report | /gaunt cols 240 | /gaunt scale 1.5 | /gaunt shots on|off | /gaunt mouse look|edge|off | /gaunt test (speed and asset tests) | /gaunt stop") end
 end
 
 return Main
