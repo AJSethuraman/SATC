@@ -33,7 +33,7 @@ function GetBuildInfo() return "1.15.0", "99999", "Jan 1 2026", 11500 end
 """
 
 
-def test_a_signal_counts_only_if_it_moved_enough_frames_and_the_verdict_follows_the_locked_step():
+def test_a_signal_counts_only_if_it_moved_enough_frames_and_facing_alone_never_chooses_the_lock():
     lua, ns = boot()
     P = ns.MouseProbe.new()
     for i in range(10):
@@ -44,7 +44,7 @@ def test_a_signal_counts_only_if_it_moved_enough_frames_and_the_verdict_follows_
         ns.MouseProbe.sample(P, lua.table_from({"facing": 1.0 + i * 0.01, "cx": 500, "dx": 0}))
     assert list(ns.MouseProbe.working(P.stats[2]).values()) == ["facing"]
     mode, sig = ns.MouseProbe.verdict(P)
-    assert mode == "look" and list(sig.values()) == ["facing"]
+    assert mode == "edge" and list(sig.values()) == []            # facing alone does not choose the lock
 
 
 def test_nothing_while_locked_but_the_cursor_moves_free_gives_free_and_nothing_at_all_gives_edge():

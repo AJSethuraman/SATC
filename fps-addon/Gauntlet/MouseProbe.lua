@@ -65,10 +65,7 @@ function Probe.verdict(P)
   local free = Probe.working(P.stats[1])
   if has(locked, "delta") then return "look", locked end
   if has(free, "cursor") then return "free", free end
-  if #locked > 0 then
-    if not has(locked, "facing") then return "lockpos", locked end
-    return "look", locked
-  end
+  if #locked > 0 and not has(locked, "facing") then return "lockpos", locked end    -- facing alone never chooses the lock
   return "edge", {}
 end
 
