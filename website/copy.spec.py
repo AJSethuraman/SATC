@@ -52,6 +52,20 @@ PAGES = ["index.html", "pricing.html", "privacy.html",
 #: visitor reads has to read everything a visitor reads, whatever produced it.
 COPY_IN_SCRIPTS = ["intake-config.js"]
 
+#: THE OTHER HALF OF THE SAME BLIND SPOT, found 7 September 2026 by walking the
+#: form in a browser. `intake-config.js` above holds the QUESTIONS; `intake.js`
+#: is the RENDERER, and it carries copy of its own: the consent checkbox, the
+#: buttons, the screens after the Simple Filer questions. The banned phrase
+#: "engagement letter" sat in it, live on the home page, while this spec
+#: reported 39/39 green with intake-config.js already covered. Half a blind spot
+#: still reads as green.
+#:
+#: It needs its own extractor rather than a second entry in COPY_IN_SCRIPTS:
+#: that list is read by `key: "value"` pairs, and a renderer has none -- it
+#: builds HTML by concatenating quoted fragments, so the key reader finds
+#: nothing and the assert below would fire on an empty result.
+COPY_IN_RENDERERS = ["intake.js"]
+
 #: The keys in those scripts whose values are shown to a person. Deliberately a
 #: list and not "every string": a URL, an id or a field name is not copy, and
 #: sweeping them in would make this noisy enough to be ignored.
@@ -198,7 +212,28 @@ def script_copy(path: Path) -> str:
     return " ".join(a or b for a, b in re.findall(pattern, src, re.S))
 
 
-for page in PAGES + COPY_IN_SCRIPTS:
+def renderer_copy(path: Path) -> str:
+    """The prose a renderer script emits, out of the HTML it concatenates.
+
+    A renderer has no `key: "value"` pairs for script_copy() to read. What it
+    does have is quoted fragments that are glued into HTML, and the visitor reads
+    whatever ends up between the tags.
+
+    So: take every quoted literal, join them in source order, and put the result
+    through the same tag-stripper the .html pages go through.
+
+    Deliberately NOT a JavaScript parser. It over-collects, since class names and
+    attribute fragments come along too, and that is the safe direction here:
+    every check run against this text looks for a banned English phrase, and
+    "wiz-step" matches nothing on any list. Missing real copy would be the
+    dangerous error; carrying a few class names is not.
+    """
+    src = path.read_text(encoding="utf-8")
+    parts = re.findall(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"", src)
+    return visible_text("".join(a or b for a, b in parts))
+
+
+for page in PAGES + COPY_IN_SCRIPTS + COPY_IN_RENDERERS:
     path = HERE / page
     # A config script holds DISCRETE LABELS, not prose. The vocabulary tenets
     # apply to both -- a banned phrase is banned wherever a visitor reads it --
@@ -206,11 +241,14 @@ for page in PAGES + COPY_IN_SCRIPTS:
     # option, and 83 of them are not one 300-word sentence. Two of them repeat
     # on purpose ("None of these", "I am not sure"), which is how a form is
     # meant to work, not copy said twice.
-    is_page = page not in COPY_IN_SCRIPTS
+    is_page = page not in COPY_IN_SCRIPTS and page not in COPY_IN_RENDERERS
     if is_page:
         text = visible_text(path.read_text(encoding="utf-8"))
-    else:
+    elif page in COPY_IN_SCRIPTS:
         text = script_copy(path)
+        assert text.strip(), f"{page}: no visitor-facing strings found -- has it changed shape?"
+    else:
+        text = renderer_copy(path)
         assert text.strip(), f"{page}: no visitor-facing strings found -- has it changed shape?"
     low = text.lower()
     sents = sentences(text)
@@ -238,9 +276,11 @@ for page in PAGES + COPY_IN_SCRIPTS:
     # of quietly skipping: a check that did not happen must not read as one that
     # passed.
     if not is_page:
-        print("  n/a   sentence length and repetition — not prose, "
-              "83 form labels are not one sentence and repeated options are "
-              "how a form works")
+        why = ("script that renders a form, its fragments are not one sentence"
+               if page in COPY_IN_RENDERERS else
+               "83 form labels are not one sentence and repeated options are "
+               "how a form works")
+        print(f"  n/a   sentence length and repetition — not prose, {why}")
         print()
         continue
 
