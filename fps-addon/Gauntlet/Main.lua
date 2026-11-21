@@ -14,7 +14,7 @@ Main.COLUMNS = 320
 Main.SCALE = nil          -- nil: fit the window to the screen; /gaunt scale N sets it
 Main.SHOT_GAP, Main.SHOT_BUDGET = 15, 40
 Main.mouse = true
-Main.look = true         -- the mouse is locked to the middle and turns the view; where the client cannot lock it, the view turns with the cursor's movement
+Main.look = false        -- the view turns with the cursor's movement (and keeps turning at the screen edge). /gaunt mouse look locks the mouse instead
 Main.debug = true        -- a line of mouse readings is shown while the lock is on
 Main.edge = false        -- /gaunt mouse edge: the old turn, speed set by how far the cursor is from the middle (it keeps turning while it is off-centre)
 Main.SENS = 0.0035       -- radians per pixel of mouse movement (/gaunt mouse sens N)
@@ -289,15 +289,24 @@ local function mouselook(on)
   end
 end
 
--- No lock available: turn by how far the cursor moved since the last frame. A still cursor does not turn you, so nothing sways.
-local function free_turn()
+-- No lock: turn by how far the cursor moved since the last frame (a still cursor does not turn you, so nothing sways). The black cover hides the
+-- screen, so the cursor is only a pointer. At the very edge of the screen it cannot move further, so there the view keeps turning on its own.
+Main.EDGE_ZONE, Main.EDGE_RATE = 0.05, 3.0           -- the outer 5% of the screen on each side; radians per second
+local function free_turn(dt)
   if not (Main.mouse and GetCursorPosition) then G.cx = nil; return 0 end
   local mx = GetCursorPosition()
   if not mx then return 0 end
   local last = G.cx
   G.cx = mx
-  if not last then return 0 end
-  return (mx - last) * Main.SENS
+  local turn = last and (mx - last) * Main.SENS or 0
+  local uw = UIParent and UIParent.GetWidth and UIParent:GetWidth()
+  local us = UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()
+  if type(uw) == "number" and uw > 0 and type(us) == "number" and us > 0 then
+    local f = mx / (uw * us)                           -- 0 at the left edge of the screen, 1 at the right
+    if f < Main.EDGE_ZONE then turn = turn - Main.EDGE_RATE * dt * (Main.EDGE_ZONE - f) / Main.EDGE_ZONE
+    elseif f > 1 - Main.EDGE_ZONE then turn = turn + Main.EDGE_RATE * dt * (f - (1 - Main.EDGE_ZONE)) / Main.EDGE_ZONE end
+  end
+  return turn
 end
 
 -- A line of what the client reports about the mouse, shown while the lock is on (/gaunt mouse debug hides it): for a client that gives no signal.
@@ -338,7 +347,7 @@ local function play_frame(dt)
   local label = not Main.mouse and "mouse off" or look_on() and "mouse locked" or Main.edge and "mouse: edge turn" or "mouse: follows cursor"
   if G.mlabel ~= label and G.title then G.mlabel = label; R.title:SetText(G.title .. "     [" .. label .. "]") end
   if Main.debug and R.dbg then R.dbg:SetText(look_on() and mouse_debug_line() or "") end
-  if look_on() then G.cx = nil; mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then G.cx = nil; p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn() end end
+  if look_on() then G.cx = nil; mouselook(true); p.ang = p.ang + look_turn() else mouselook(false); if Main.edge then G.cx = nil; p.ang = p.ang + mouse_turn() * dt else p.ang = p.ang + free_turn(dt) end end
   Play.move(w, fwd, side, dt, SPEED)
   if fwd ~= 0 or side ~= 0 then G.walk = G.walk + dt end
   local held = G.mouse_down or (IsMouseButtonDown and IsMouseButtonDown("LeftButton"))
@@ -416,7 +425,7 @@ end
 local function ensure_window()
   if R then return end
   R = Render.build("GauntletGameFrame")
-  if db().mouse_mode then Main.set_mouse_mode(db().mouse_mode) end        -- what /gaunt mousetest found works on this client
+  if db().mouse_mode and db().mouse_mode_v == 2 then Main.set_mouse_mode(db().mouse_mode) end        -- what /gaunt mousetest found works on this client
   if R.frame.SetScale then R.frame:SetScale(Main.scale()) end
   build_hud()
   R.frame:SetScript("OnUpdate", on_update)

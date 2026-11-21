@@ -42,6 +42,8 @@ def slash(lua, text):
 
 def start(prelude=""):
     lua, ns = boot(prelude)
+    if "MouselookStart" in prelude:
+        ns.Main.look = True                                   # the lock is opt-in (/gaunt mouse look); these tests are about it
     ns.Main.start(False)
     tick(lua, 2)
     return lua, ns, ns.Main.state()
@@ -852,3 +854,24 @@ def test_a_client_where_only_the_cursor_position_moves_while_locked_still_gets_t
     lua.execute("CURSOR[1] = CURSOR[1] + 60")
     tick(lua, 1)
     assert G.w.player.ang - a0 == pytest.approx(60 * 0.0035)
+
+
+def test_at_the_edge_of_the_screen_the_view_keeps_turning_by_itself_faster_the_closer_to_the_edge():
+    lua, ns, G = start("UIParent.GetWidth = function() return 1000 end; UIParent.GetEffectiveScale = function() return 1 end")
+    w = hall_world(lua, ns, G)
+    tick(lua, 2)
+    lua.execute("CURSOR[1] = 1000")                                  # the very right edge
+    tick(lua, 1)                                                     # the jump itself is a 'movement': set it aside
+    a0 = w.player.ang
+    tick(lua, 75)                                                    # one second
+    assert w.player.ang - a0 == pytest.approx(3.0, abs=0.1)
+    lua.execute("CURSOR[1] = 25")                                    # halfway into the left zone
+    tick(lua, 1)
+    a1 = w.player.ang
+    tick(lua, 75)
+    assert w.player.ang - a1 == pytest.approx(-1.5, abs=0.1)
+    lua.execute("CURSOR[1] = 500")                                   # the middle: no drift
+    tick(lua, 2)
+    a2 = w.player.ang
+    tick(lua, 75)
+    assert w.player.ang == pytest.approx(a2)

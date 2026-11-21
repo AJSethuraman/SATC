@@ -57,16 +57,18 @@ end
 -- A client that gave nothing even with the cursor free gets "edge".
 local function has(list, name) for _, v in ipairs(list) do if v == name then return true end end return false end
 
--- "lockpos" is a lock where only the reported cursor position moves (the game then needs to know to lock without a delta or a facing).
--- "free" needs the cursor position itself to move: that is the only signal the cursor-follow turn reads.
+-- Which mode to use. Only a real mouse-movement signal while locked (the cursor delta) is trusted for "look": the player's facing is a smoothed
+-- stand-in that can move without matching the mouse, so facing alone does not choose the lock. Otherwise the cursor's own movement ("free", with a
+-- turn at the screen edge) is the dependable choice. "lockpos" and "edge" are for clients that give nothing better.
 function Probe.verdict(P)
   local locked = Probe.working(P.stats[2])
+  local free = Probe.working(P.stats[1])
+  if has(locked, "delta") then return "look", locked end
+  if has(free, "cursor") then return "free", free end
   if #locked > 0 then
-    if not has(locked, "delta") and not has(locked, "facing") then return "lockpos", locked end
+    if not has(locked, "facing") then return "lockpos", locked end
     return "look", locked
   end
-  local free = Probe.working(P.stats[1])
-  if has(free, "cursor") then return "free", free end
   return "edge", {}
 end
 
@@ -138,7 +140,7 @@ local function finish()
   local mode = Probe.verdict(P)
   GauntletDB = GauntletDB or {}
   GauntletDB.mouse_probe = rep
-  GauntletDB.mouse_mode = mode
+  GauntletDB.mouse_mode, GauntletDB.mouse_mode_v = mode, 2      -- v2: choices saved by an older test (which trusted facing alone) are ignored
   if ns.Main and ns.Main.set_mouse_mode then ns.Main.set_mouse_mode(mode) end
   print("|cffffaa33Gauntlet|r mouse test done. Mode chosen: " .. mode .. ". /reload and run Collect-Gauntlet-Report.bat to send me the numbers.")
   if ns.Gauntlet and ns.Gauntlet.copy_text then ns.Gauntlet.copy_text(rep) end
