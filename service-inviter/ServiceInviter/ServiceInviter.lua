@@ -1,4 +1,4 @@
--- Service Inviter v3.9.29
+-- Service Inviter v3.9.30
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1852,7 +1852,10 @@ local function OnSystem(text)
         -- and a scammer should be raid warned or whatever by POC")
         local ch = channel
         if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
-        if loyal then Jobs.Route("loyal", loyal, short, ch) end   -- your Regular line, as written
+        if loyal then
+            Jobs.Route("loyal", loyal, short, ch)   -- your Regular line, as written
+            Jobs.LoyalNote(short, ch)
+        end
         return
     end
     local welcome = WelcomeText(short)
@@ -1861,6 +1864,19 @@ local function OnSystem(text)
     Jobs.Route("welcome", welcome, short, channel)
 end
 
+-- Where the regulars line went, and why not a raid warning when it wasn't one (the owner, 21 Nov
+-- 2026: "when it whispered a frequent flyer including the price it did not raid announce it")
+function Jobs.LoyalNote(short, ch)
+    local poc = Jobs.POC and Jobs.POC()
+    local where
+    if poc and poc ~= Jobs.Me() then where = "left to " .. poc .. ", the point of contact (only their copy talks)"
+    elseif Jobs.RouteOf("loyal") == "off" then where = "not said: the regulars line is Off (Messages tab)"
+    elseif Jobs.RouteOf("loyal") == "whisper" then where = "whispered to them (Messages tab: Whisper)"
+    elseif ch == "RAID_WARNING" then where = "said as a raid warning"
+    elseif ch == "RAID" then where = "said in raid chat: a raid warning needs raid leader or assist"
+    else where = "said in party chat: a party has no raid warning (it does once it's a raid)" end
+    P("|cffe9b949" .. short .. " is a regular|r: " .. where)
+end
 local function ChannelAllowed(ch)
     return Jobs.ChannelAllowed(ch)
 end

@@ -640,3 +640,13 @@ any channel sets your price for that city in every channel, in whispers too, so 
 quote from one copy agree. The reason names where the rival was heard ("Rival sells at 30 silver
 in Trade - City"). The Prices window is one row, "All channels", with the next ad's channel beside
 it. Teammates' copies still each price from what they hear themselves.
+
+## 3.9.30: where the regulars line went (21 Nov 2026)
+
+The owner: *"when it whispered a frequent flyer including the price it did not raid announce it"*.
+The flow is as designed (price by whisper on invite, the regulars line to the group on joining, as
+a raid warning when you may), and it reproduces correctly offline, so the cause is in the
+situation: a party (no raid warnings), no leader or assist in a raid, or a teammate as point of
+contact. Each time a regular joins, your chat now says which: "Kaldrok is a regular: said as a raid
+warning" / "said in party chat: a party has no raid warning" / "said in raid chat: a raid warning
+needs raid leader or assist" / "left to Bone Charms, the point of contact".
