@@ -631,3 +631,12 @@ so its price was worked out with none and came out at the max; with only whisper
 city across your channels (and any channel a rival was heard in), with why ("a whisper gets your
 lowest, from Trade - English 50: ..."). A whisper naming no city ("inv") gets the lowest of the
 cities you sell, the number the ad shows, and with one city that's their destination.
+
+## 3.9.29: one price everywhere (21 Nov 2026)
+
+The owner: *"adjust all of one user's pricing to the same - if i spam in /2 for one price i'd do
+the same in /6 i don't want to be called out"*. Per-channel prices (3.1) are gone: a rival's ad in
+any channel sets your price for that city in every channel, in whispers too, so every ad and every
+quote from one copy agree. The reason names where the rival was heard ("Rival sells at 30 silver
+in Trade - City"). The Prices window is one row, "All channels", with the next ad's channel beside
+it. Teammates' copies still each price from what they hear themselves.

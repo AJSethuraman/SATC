@@ -96,7 +96,7 @@ def test_si_prices_lists_rivals():
     g.run('SlashCmdList.SERVICEINVITER("prices text")')
     out = " ".join(g.plain())
     assert "Summons 20 silver to 35 silver; other sellers: undercut by 5 silver" in out
-    assert "TB  25 silver in [Trade - City]: Rival sells at 30 silver" in out
+    assert "TB  25 silver in [All channels]: Rival sells at 30 silver in Trade - City" in out
     assert 'Next ad: [Trade - City] "WTS summons to TB 25 silver' in out
     assert '[Trade - City] Rival: "WTS summons to TB 30s" -> counted: 30 silver' in out
 
@@ -118,14 +118,17 @@ def test_the_invite_says_which_channel_and_why_that_price():
     assert any("quoted 25 silver in [Trade - City]" in p for p in g.plain())
 
 
-def test_the_same_city_in_another_trade_channel_is_your_max_and_says_so():
+def test_another_trade_channel_gets_the_same_price():
+    """The owner, 21 Nov 2026: "adjust all of one user's pricing to the same - if i spam in /2 for
+    one price i'd do the same in /6 i don't want to be called out"."""
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s pst")          # Trade - City
     g.event("CHAT_MSG_CHANNEL", "WTB summon to TB", "Kaldrok", "", "4. Trade - English 40", "", "", "", "", "Trade - English 40")
     p = g.plain()
     assert any('because [Trade - English 40]' in l for l in p)
     q = [l for l in p if "quoted" in l][-1]
-    assert "35 silver in [Trade - English 40]: your max (no other seller for TB in this channel" in q
+    assert "25 silver in [Trade - English 40]: Rival sells at 30 silver in Trade - City" in q
+    assert price(g, market="Trade - English 40") == price(g, market="Trade - City") == 25
 
 
 def test_a_near_miss_says_the_channel_and_the_price_there():
@@ -203,16 +206,14 @@ def test_the_prices_window_is_a_grid_of_channels_by_cities():
     assert g.eval(f"{W}:IsShown()")
     assert g.eval(f"{W}.colHead[1]:GetText()") == "TB"
     r1 = g.eval(f"{W}.rows[1].label:GetText()")
-    assert "Trade (Services) 50" in r1 and g.eval(f"{W}.rows[1].nxt:IsShown()")
+    assert r1 == "All channels" and g.eval(f"{W}.rows[1].nxt:IsShown()")
+    assert "Trade (Services) 50" in g.eval(f"{W}.rows[1].nxt:GetText()")
     c11 = g.eval(f"{W}.rows[1].cells[1]:GetText()")
     assert c11 == "|cff40ff4025s|r"                                   # green: moved for a rival
     assert "Rival sells at 30 silver" in g.eval(f"{W}.rows[1].cells[1].why")
-    c21 = g.eval(f"{W}.rows[2].cells[1]:GetText()")
-    assert "Trade 4" in g.eval(f"{W}.rows[2].label:GetText()") and not g.eval(f"{W}.rows[2].nxt:IsShown()") and c21 == "|cffffffff35s|r"   # white: the max
-    assert "no other seller" in g.eval(f"{W}.rows[2].cells[1].why")
+    assert not g.eval(f"{W}.rows[2].band:IsShown()")                  # one price everywhere: one row
     heard = g.eval(f"{W}.heard[1]:GetText()")
     assert "Rival" in heard and "counted: 30 silver" in heard
-    assert not g.eval(f"{W}.rows[3].band:IsShown()")
     assert "Max 35 silver" in g.eval(f"{W}.rule:GetText()") and "Min 20 silver" in g.eval(f"{W}.rule:GetText()")
 
 
@@ -226,7 +227,7 @@ def test_a_whisper_gets_the_price_the_ad_said():
     assert "50 silver" in st[5]
     g.event("CHAT_MSG_WHISPER", "wtb summon to TB", "Kaldrok", "", "", "", "", "", "", "")
     assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 50
-    assert any("a whisper gets your lowest, from Trade - City" in l for l in g.plain())
+    assert any("quoted 50 silver in [Whisper]: Rival sells at 51 silver in Trade - City" in l for l in g.plain())
 
 
 def test_a_whisper_with_no_rival_anywhere_is_the_max():

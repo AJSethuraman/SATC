@@ -1,4 +1,4 @@
--- Service Inviter v3.9.28
+-- Service Inviter v3.9.29
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -798,13 +798,18 @@ function Jobs.MarketOf(channelName)
     return (channelName:gsub("^%d+%.%s*", ""))
 end
 -- the cheapest rival for a city in a market, seen in the last 5 minutes
-function Jobs.Rival(where, market)
-    market = market or Jobs.priceMarket
-    local m = market and where and Jobs.rivals[market] and Jobs.rivals[market][where]
-    if not m then return nil end
+-- the cheapest rival for a city seen in the last 5 minutes, in ANY channel: you have one price for
+-- a city everywhere at once (the owner, 21 Nov 2026: "adjust all of one user's pricing to the same
+-- - if i spam in /2 for one price i'd do the same in /6 i don't want to be called out")
+function Jobs.Rival(where)
+    if not where then return nil end
     local best
-    for who, r in pairs(m) do
-        if GetTime() - r.t <= Jobs.RIVAL_LASTS and (not best or r.price < best.price) then best = { price = r.price, t = r.t, who = who } end
+    for market, cities in pairs(Jobs.rivals) do
+        for who, r in pairs(cities[where] or {}) do
+            if GetTime() - r.t <= Jobs.RIVAL_LASTS and (not best or r.price < best.price) then
+                best = { price = r.price, t = r.t, who = who, market = market }
+            end
+        end
     end
     return best
 end
@@ -823,38 +828,13 @@ Core.LivePrice = function(key, base, saved, where)
     if mode == "ignore" then Jobs.priceWhy = "your max (rival rule is Ignore)" return base end
     local floor = tonumber(saved.floor)
     if not floor then Jobs.priceWhy = "your max (no min set, so it never moves)" return base end
-    -- a whisper answers an ad from some channel: it gets your lowest price of them all, never more
-    -- than an ad said (the owner, 21 Nov 2026: "it correctly advertises for 50 but quotes 55 on
-    -- invite": whispers had no channel, so they got the max)
-    if Jobs.priceMarket == "Whisper" then
-        local list, seen = {}, {}
-        for _, c in ipairs(Jobs.WatchedChannels()) do
-            local m = Jobs.MarketForAd(c.id, c.name)
-            if m and not seen[m] then seen[m] = true list[#list + 1] = m end
-        end
-        for m in pairs(Jobs.rivals) do if not seen[m] then seen[m] = true list[#list + 1] = m end end
-        local best, why, kind, at
-        for _, m in ipairs(list) do
-            Jobs.priceMarket = m
-            local p = Core.LivePrice(key, base, saved, where)
-            if p and (not best or p < best) then best, why, kind, at = p, Jobs.priceWhy, Jobs.priceKind, m end
-        end
-        Jobs.priceMarket = "Whisper"
-        if best then
-            Jobs.priceWhy, Jobs.priceKind = "a whisper gets your lowest, from " .. at .. ": " .. why, kind
-            return best
-        end
-        Jobs.priceWhy, Jobs.priceKind = "your max (a whisper, and no channel to price from)", "max"
-        return base
-    end
-    if not Jobs.priceMarket then Jobs.priceWhy, Jobs.priceKind = "your max (channel unknown, so no rival counted)", "unknown" return base end
     local r = Jobs.Rival(where)
-    if not r then Jobs.priceWhy = "your max (no other seller for " .. Core.Short(where) .. " in this channel in the last 5 min)" return base end
+    if not r then Jobs.priceWhy = "your max (no other seller for " .. Core.Short(where) .. " in any channel in the last 5 min)" return base end
     local cut = tonumber(saved.undercut) or 5
     local p = (mode == "match") and r.price or (r.price - cut)
     local out = math.max(floor, math.min(base, p))
     Jobs.priceKind = (out == floor and p < floor) and "min" or ((out == base and p > base) and "max" or "rival")
-    Jobs.priceWhy = r.who .. " sells at " .. M(r.price) .. ", " .. math.floor(GetTime() - r.t) .. "s ago; " ..
+    Jobs.priceWhy = r.who .. " sells at " .. M(r.price) .. " in " .. r.market .. ", " .. math.floor(GetTime() - r.t) .. "s ago; " ..
         ((mode == "match") and "match" or ("undercut by " .. M(cut))) ..
         ((out == floor and p < floor) and (", held at your min " .. M(floor)) or "") ..
         ((out == base and p > base) and ", already above your max" or "")
@@ -3797,17 +3777,8 @@ function Jobs.PrintPrices()
     for _, d in ipairs(T.dests or {}) do if T.sum[d.key] then cities[#cities + 1] = d.label end end
     if #cities == 0 then P("You're not selling summons anywhere right now (no warlock in the group where you'd summon to).") end
     local shown = {}
-    P("|cffffd100Now, by channel|r (what an invite or the ad from there would say):")
-    for _, c in ipairs(Jobs.WatchedChannels()) do
-        local m = Jobs.MarketForAd(c.id, c.name)
-        shown[m] = true
-        for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m)) end
-    end
-    for m in pairs(Jobs.rivals) do
-        if not shown[m] then
-            for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m) .. " |cff999999(not in your channel list)|r") end
-        end
-    end
+    P("|cffffd100Now|r (the same in every channel, and for whispers):")
+    for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, "All channels")) end
     local q = Jobs.AdQueue()
     if q[1] then
         local _, key, id, name, text = AdState()
@@ -3880,7 +3851,7 @@ function Jobs.ShowPrices()
         w.top, w.LW, w.CWd = top, LW, CWd
         -- the legend and the ads heard sit right under the rows in use (placed in FillPrices)
         w.legend = Text(w, 11, INK.faint) w.legend:SetWidth(W - 36) w.legend:SetJustifyH("LEFT")
-        w.legend:SetText("|cff40ff40green|r undercut a rival   |cffffffffwhite|r your max   |cffffa040orange|r your min   |cffff6060red|r channel unknown   ·   hover for why")
+        w.legend:SetText("|cff40ff40green|r undercut a rival   |cffffffffwhite|r your max   |cffffa040orange|r your min   ·   hover for why")
         w.heardHead = Text(w, 12, INK.muted) w.heardHead:SetText("SUMMON ADS HEARD")
         w.heard = {}
         for i = 1, Jobs.PRICE_HEARD do
@@ -3909,13 +3880,8 @@ function Jobs.FillPrices()
     local cities = {}
     for _, d in ipairs(T.dests or {}) do if T.sum[d.key] and #cities < Jobs.PRICE_COLS then cities[#cities + 1] = d.label end end
     for c = 1, Jobs.PRICE_COLS do w.colHead[c]:SetText(cities[c] and Core.Short(cities[c]) or "") end
-    -- channels: the ones you post and listen in, then any other one a rival was heard in
-    local markets, seen = {}, {}
-    for _, c in ipairs(Jobs.WatchedChannels()) do
-        local m = Jobs.MarketForAd(c.id, c.name)
-        if m and not seen[m] then seen[m] = true markets[#markets + 1] = m end
-    end
-    for m in pairs(Jobs.rivals) do if not seen[m] then seen[m] = true markets[#markets + 1] = m end end
+    -- one price per city everywhere (3.9.29), so one row; the next ad's channel beside it
+    local markets = { "All channels" }
     local _, _, nid, nname = AdState()
     local nextM = nid and Jobs.MarketForAd(nid, nname)
     local used = 0
@@ -3923,18 +3889,19 @@ function Jobs.FillPrices()
         local row, m = w.rows[r], markets[r]
         local show = m ~= nil and #cities > 0
         if show then used = r row.band:Show() row.label:Show() else row.band:Hide() row.label:Hide() end
-        if show and m == nextM then
+        if show and r == 1 and nextM then
+            row.nxt:SetText("NEXT AD  " .. Jobs.ChanLabel(nextM))
             row.nxt:ClearAllPoints()
             row.nxt:SetPoint("TOPLEFT", 18 + w.LW + #cities * w.CWd + 8, w.top - 22 - (r - 1) * 30 - 2)
             row.nxt:Show()
         else row.nxt:Hide() end
-        if m then row.label:SetText(Jobs.ChanLabel(m)) end
+        if m then row.label:SetText(m) end
         for c = 1, Jobs.PRICE_COLS do
             local b = row.cells[c]
             if show and cities[c] then
                 local p, kind, why = Jobs.PriceCell(cities[c], m)
                 b:SetText("|cff" .. Jobs.PRICE_COLORS[kind] .. (Core.Money(p) or "free"):gsub(" silver", "s"):gsub(" gold", "g") .. "|r")
-                b.head, b.why = Core.Short(cities[c]) .. " in " .. m, why
+                b.head, b.why = Core.Short(cities[c]) .. ", every channel", why
                 b:Show()
             else b:Hide() end
         end
