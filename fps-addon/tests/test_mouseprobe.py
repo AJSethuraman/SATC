@@ -33,7 +33,7 @@ function GetBuildInfo() return "1.15.0", "99999", "Jan 1 2026", 11500 end
 """
 
 
-def test_a_signal_counts_only_if_it_moved_enough_frames_and_the_verdict_follows_the_locked_step():
+def test_a_signal_counts_only_if_it_moved_enough_frames_and_facing_alone_never_chooses_the_lock():
     lua, ns = boot()
     P = ns.MouseProbe.new()
     for i in range(10):
@@ -44,7 +44,7 @@ def test_a_signal_counts_only_if_it_moved_enough_frames_and_the_verdict_follows_
         ns.MouseProbe.sample(P, lua.table_from({"facing": 1.0 + i * 0.01, "cx": 500, "dx": 0}))
     assert list(ns.MouseProbe.working(P.stats[2]).values()) == ["facing"]
     mode, sig = ns.MouseProbe.verdict(P)
-    assert mode == "look" and list(sig.values()) == ["facing"]
+    assert mode == "edge" and list(sig.values()) == []            # facing alone does not choose the lock
 
 
 def test_nothing_while_locked_but_the_cursor_moves_free_gives_free_and_nothing_at_all_gives_edge():
@@ -98,7 +98,7 @@ def test_a_client_that_gives_nothing_while_locked_is_set_to_free_and_the_game_th
     run_phases(lua, ns, script)
     assert str(lua.eval("GauntletDB.mouse_mode")) == "free"
     assert ns.Main.look is False
-    lua2, ns2 = boot(API + "GauntletDB = { mouse_mode = 'free' }")                  # a later session reads the saved choice
+    lua2, ns2 = boot(API + "GauntletDB = { mouse_mode = 'free', mouse_mode_v = 2 }")                  # a later session reads the saved choice
     ns2.Main.start(False)
     assert ns2.Main.look is False
 
@@ -149,3 +149,23 @@ def test_the_lock_the_test_started_is_always_stopped_even_if_the_client_never_sa
     assert lua.eval("LOCKED") is True
     f.scripts.OnKeyDown(f, "ESCAPE")
     assert lua.eval("LOCKED") is False                              # stopped although IsMouselooking never said so
+
+
+def test_facing_alone_while_locked_is_not_trusted_when_the_free_cursor_works_but_a_locked_delta_is():
+    lua, ns = boot()
+    P = ns.MouseProbe.new()
+    for i in range(10):
+        ns.MouseProbe.sample(P, lua.table_from({"cx": 500 + i * 7, "dx": 7, "facing": 1.0 + i * 0.01}))   # free step: everything moves
+    P.phase = 2
+    for i in range(10):
+        ns.MouseProbe.sample(P, lua.table_from({"cx": 500, "facing": 1.0 + i * 0.01}))                  # locked: only the facing, like the real client
+    assert ns.MouseProbe.verdict(P)[0] == "free"
+    for i in range(10):
+        ns.MouseProbe.sample(P, lua.table_from({"cx": 500, "dx": 5, "facing": 1.0}))                    # now the locked delta reports too
+    assert ns.MouseProbe.verdict(P)[0] == "look"
+
+
+def test_a_choice_saved_by_the_older_test_is_ignored_so_the_new_default_applies():
+    lua, ns = boot(API + "GauntletDB = { mouse_mode = 'look' }")                    # no version: saved when facing alone chose the lock
+    ns.Main.start(False)
+    assert ns.Main.look is False
