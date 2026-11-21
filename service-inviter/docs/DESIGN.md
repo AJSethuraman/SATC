@@ -658,3 +658,9 @@ invite, the welcome waits for them to join; that welcome was built with the regu
 and whispered. A whispered welcome now leaves it out, and the regulars line goes to the group on its
 own (a raid warning when you may), with the note from 3.9.30. A `{visits}` you put in the welcome
 text yourself still says it, by design.
+
+## 3.9.32: names keep their spaces (21 Nov 2026)
+
+The owner: *"it keeps removing the space in the whisper to name for the lock"*. Saving the
+Warlock tab's "Whisper to" box stripped every space ("Yeet Lock" became "YeetLock"); it now trims
+the ends only. It was the only name box doing that.

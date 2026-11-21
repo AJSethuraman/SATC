@@ -1,4 +1,4 @@
--- Service Inviter v3.9.31
+-- Service Inviter v3.9.32
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -6293,7 +6293,9 @@ local function BuildSetupUI()
             if (key == "loyaltymsg" or key == "scammsg" or key == "paymsg" or key == "offermsg") and v == "" then db[key] = ""   -- empty = off
             elseif v == "" or v == def then db[key] = nil else db[key] = v end
         end
-        local who = (boxes.whisperto:GetText():gsub("%s+", ""))
+        -- trim the ends only: names have spaces in them (the owner, 21 Nov 2026: "it keeps removing
+        -- the space in the whisper to name for the lock")
+        local who = (boxes.whisperto:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
         db.whisperto = (who == "") and false or who
         db.autotrade = checks.autotrade:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end

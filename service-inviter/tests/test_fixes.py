@@ -171,3 +171,11 @@ def test_setup_background_is_solid_black(game):
     ground = src[src.index("local INK = {"):].split('ground = "', 1)[1][:6]
     r, g, b = (int(ground[i:i + 2], 16) for i in (0, 2, 4))
     assert max(r, g, b) <= 0x20                      # basically completely dark (#14110d)
+
+
+def test_whisper_to_keeps_the_space_in_a_name(game):
+    """The owner, 21 Nov 2026: "it keeps removing the space in the whisper to name for the lock"."""
+    game.run('S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() S.boxes.whisperto:SetText("  Yeet Lock ") S.Save()')
+    assert game.eval("ServiceInviterDB.whisperto") == "Yeet Lock"
+    game.run("S.Load()")
+    assert game.eval("S.boxes.whisperto:GetText()") == "Yeet Lock"
