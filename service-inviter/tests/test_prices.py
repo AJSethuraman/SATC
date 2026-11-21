@@ -214,3 +214,34 @@ def test_the_prices_window_is_a_grid_of_channels_by_cities():
     assert "Rival" in heard and "counted: 30 silver" in heard
     assert not g.eval(f"{W}.rows[3].band:IsShown()")
     assert "Max 35 silver" in g.eval(f"{W}.rule:GetText()") and "Min 20 silver" in g.eval(f"{W}.rule:GetText()")
+
+
+def test_a_whisper_gets_the_price_the_ad_said():
+    """The owner, 21 Nov 2026: "it correctly advertises for 50 but quotes 55 on invite" -- a whisper
+    had no channel to price from, so it got the max."""
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 55, match = true, floor = 30, undercut = 1 }")
+    g.run('ServiceInviterDB.role = "lock"')
+    say_trade(g, "Rival", "WTS summons to TB 51s pst")
+    st = g.eval("{ ServiceInviter_Test.AdState() }")
+    assert "50 silver" in st[5]
+    g.event("CHAT_MSG_WHISPER", "wtb summon to TB", "Kaldrok", "", "", "", "", "", "", "")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 50
+    assert any("a whisper gets your lowest, from Trade - City" in l for l in g.plain())
+
+
+def test_a_whisper_with_no_rival_anywhere_is_the_max():
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 55, match = true, floor = 30, undercut = 1 }")
+    g.run('ServiceInviterDB.role = "lock"')
+    g.event("CHAT_MSG_WHISPER", "inv", "Kaldrok", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_WHISPER", "wtb summon to TB", "Momma", "", "", "", "", "", "", "")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Momma").price') == 55
+
+
+def test_inv_answering_the_ad_gets_the_ads_price():
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 55, match = true, floor = 30, undercut = 1 }")
+    g.run('ServiceInviterDB.role = "lock"')
+    say_trade(g, "Rival", "WTS summons to TB 51s pst")
+    g.event("CHAT_MSG_WHISPER", "inv", "Kaldrok", "", "", "", "", "", "", "")
+    j = 'ServiceInviter_Test.Jobs.Get("Kaldrok")'
+    assert g.eval(f"{j}.price") == 50 and g.eval(f"{j}.dest") == "Thunder Bluff"
+    assert "50 silver" in g.eval(f"ServiceInviter_Test.WelcomeText('Kaldrok', {j}, true)")

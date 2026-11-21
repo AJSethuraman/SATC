@@ -1,4 +1,4 @@
--- Service Inviter v3.9.27
+-- Service Inviter v3.9.28
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -823,6 +823,30 @@ Core.LivePrice = function(key, base, saved, where)
     if mode == "ignore" then Jobs.priceWhy = "your max (rival rule is Ignore)" return base end
     local floor = tonumber(saved.floor)
     if not floor then Jobs.priceWhy = "your max (no min set, so it never moves)" return base end
+    -- a whisper answers an ad from some channel: it gets your lowest price of them all, never more
+    -- than an ad said (the owner, 21 Nov 2026: "it correctly advertises for 50 but quotes 55 on
+    -- invite": whispers had no channel, so they got the max)
+    if Jobs.priceMarket == "Whisper" then
+        local list, seen = {}, {}
+        for _, c in ipairs(Jobs.WatchedChannels()) do
+            local m = Jobs.MarketForAd(c.id, c.name)
+            if m and not seen[m] then seen[m] = true list[#list + 1] = m end
+        end
+        for m in pairs(Jobs.rivals) do if not seen[m] then seen[m] = true list[#list + 1] = m end end
+        local best, why, kind, at
+        for _, m in ipairs(list) do
+            Jobs.priceMarket = m
+            local p = Core.LivePrice(key, base, saved, where)
+            if p and (not best or p < best) then best, why, kind, at = p, Jobs.priceWhy, Jobs.priceKind, m end
+        end
+        Jobs.priceMarket = "Whisper"
+        if best then
+            Jobs.priceWhy, Jobs.priceKind = "a whisper gets your lowest, from " .. at .. ": " .. why, kind
+            return best
+        end
+        Jobs.priceWhy, Jobs.priceKind = "your max (a whisper, and no channel to price from)", "max"
+        return base
+    end
     if not Jobs.priceMarket then Jobs.priceWhy, Jobs.priceKind = "your max (channel unknown, so no rival counted)", "unknown" return base end
     local r = Jobs.Rival(where)
     if not r then Jobs.priceWhy = "your max (no other seller for " .. Core.Short(where) .. " in this channel in the last 5 min)" return base end
@@ -855,7 +879,7 @@ end
 -- anyone in your group, not your workers.
 function Jobs.WatchRival(text, sender, market)
     if type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" then return end
-    if not market then return end
+    if not market or market == "Whisper" then return end
     local who = Ambiguate and Ambiguate(sender, "none") or sender
     if who == FullName("player") or Jobs.IsWorker(who) or Jobs.InGroup(who) or (Jobs.IsTeam and Jobs.IsTeam(who)) then return end
     local norm = Norm(text)
@@ -1609,6 +1633,20 @@ local function Handle(text, sender, guid)
     if not ok then return end
 
     local quote = Core.Setting(ServiceInviterDB, svc or "summons", dest).price   -- this channel's price, now
+    -- a whisper naming no city ("inv", answering the ad): the lowest of the cities you sell, which
+    -- is the price the ad shows; with one city, that's where they're going
+    if curChannel == "whisper" and not dest and (svc or "summons") == "summons" then
+        local T2, low, at, n = LiveTargets(), nil, nil, 0
+        for _, d in ipairs(T2.dests or {}) do
+            if T2.sum[d.key] then
+                n = n + 1
+                local p = Core.Setting(ServiceInviterDB, "summons", d.label).price
+                if p and (not low or p < low) then low, at = p, d.label end
+            end
+        end
+        if low then quote = low end
+        if n == 1 then svc, dest = "summons", at end
+    end
     -- a team with a point of contact who isn't you: hand them the buyer and the quote (the owner,
     -- 14 Nov 2026: "i told you i want a point of contact, so that. it just gives them that point in
     -- time price"). They invite and do the talking; you never reach the stranger.
@@ -2042,7 +2080,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, chanInde
     curChannel = tostring(channelBaseName ~= "" and channelBaseName or channelName)
     -- the market: the full channel name ("Trade - English 50"), or Say/Yell/whisper as one each
     Jobs.market = (event == "CHAT_MSG_CHANNEL" and Jobs.MarketOf(channelName)) or (event == "CHAT_MSG_SAY" and "Say") or
-        (event == "CHAT_MSG_YELL" and "Yell") or nil
+        (event == "CHAT_MSG_YELL" and "Yell") or (event == "CHAT_MSG_WHISPER" and "Whisper") or nil
     if event == "CHAT_MSG_CHANNEL" and Jobs.market and tonumber(chanIndex) then Jobs.marketById[tonumber(chanIndex)] = Jobs.market end
     if event == "CHAT_MSG_CHANNEL" then
         Report("ad", pcall(Jobs.AdSeen, text, sender))

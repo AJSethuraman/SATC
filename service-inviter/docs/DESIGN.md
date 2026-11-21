@@ -622,3 +622,12 @@ in combat the game refused to hide it, move it or switch its tabs. It is a plain
 sends the ad on click (a click is enough; the bar was the real block, 3.9.22). The main window's
 ad button stays secure, as that window already is. A test checks Setup's button carries no secure
 template, with the main window's as the control.
+
+## 3.9.28: a whisper gets the ad's price (21 Nov 2026)
+
+The owner: *"it correctly advertises for 50 but quotes 55 on invite"*. A whisper has no channel,
+so its price was worked out with none and came out at the max; with only whispers inviting
+(3.9.26) that was nearly every quote. A whisper now prices as "Whisper": the lowest price for that
+city across your channels (and any channel a rival was heard in), with why ("a whisper gets your
+lowest, from Trade - English 50: ..."). A whisper naming no city ("inv") gets the lowest of the
+cities you sell, the number the ad shows, and with one city that's their destination.
