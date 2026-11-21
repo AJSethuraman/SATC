@@ -347,20 +347,17 @@
     if (back) back.addEventListener('click', () => {
       collect(step);                 // keep what they typed before stepping away
 
-      /* PROPOSED. The likely-fit screen is not a step, so it has no index in
-         visible() to step back to. A visitor who pressed "Send this and your
-         details" jumped from it straight to contact, skipping `notes` -- so
-         plain index arithmetic sends them Back to "Anything else we should know?",
-         a question this route never asked them. Return them to the screen they
-         actually came from instead.
-
-         Narrow on purpose: only when contact was entered from likely-fit. The
-         visitor who chose "Answer a few more questions" cleared that flag and
-         gets ordinary Back behaviour through the full route. */
-      if (step.id === 'contact' && state.fromLikelyFit) {
+      /* The likely-fit and not-sure screens are not steps, so they have no index
+         in visible() to step back to. A visitor sent from one straight to
+         `contact` would otherwise land Back on `notes`, a question this path
+         never asked. Only when contact was entered from one of them; anyone
+         who went into the full form gets ordinary Back. */
+      if (step.id === 'contact' && state.fromScreen) {
+        const was = state.fromScreen;
+        state.fromScreen = null;
         state.back = true;
         save();
-        renderLikelyFit();
+        if (was === 'likely') renderLikelyFit(); else renderNotSure();
         return;
       }
 
@@ -444,48 +441,31 @@
     el.textContent = msg || '';
   }
 
-  /* ===================================================== LIKELY FIT (PROPOSED)
-     PROPOSED, NOT APPROVED. Review only, and the one genuinely NEW behaviour in
-     this mockup -- today intake.js goes question, question, submit, with no
-     recommendation screen and no step between the last question and submit().
+  /* ============================================== SIMPLE FILER SCREENS
+     Two screens that are not steps, shown after the two Simple Filer questions:
 
-     It states a package MAY apply. It does not price anything. The figure comes
-     from window.SATC_PRICING, which is generated from the fee schedule, and it
-     is shown beside the sentence that says we confirm on documents. The engine
-     that actually chooses a tier reads the preparer interview, not this form. */
-  /* PROPOSED. The homepage band needs to put the visitor ON this route, and the
-     engine has already rendered by the time the band is clicked -- setting a
-     global after first render does nothing at all, which is exactly the bug a
-     rendered click-through caught. So the band calls this.
+       likely-fit  both answers say this looks like the package
+       not-sure    either answer is "Not sure"
 
-     It is the only new public surface in the mockup, and it is deliberately one
-     function that does one thing: mark the route, clear any stale short-path
-     answers, and restart at the first short-path question. Everything after that
-     is the existing engine -- same state.answers, same prune(), same submit(). */
-  window.SATC_ENTER_SIMPLE_FILER = function () {
-    window.__SATC_ROUTE = 'simple_filer';
-    /* A previous pass down this route may have left answers that no longer
-       apply. prune() handles inapplicable answers, but the route only just
-       became true, so clear the two explicitly and let the user answer again. */
-    delete state.answers.sf_other_income;
-    delete state.answers.sf_schedules;
-    state.likelyFitSeen = false;
-    state.fromLikelyFit = false;
-    state.currentId = 'sf_other_income';
-    state.moved = true;
-    save();
-    render();
-    const h = document.getElementById('intake');
-    if (h && h.scrollIntoView) h.scrollIntoView({ block: 'start' });
-  };
+     They sit between steps rather than inside the step list, so they have no
+     index in visible(). That is why Back from the contact step needs the
+     `fromScreen` note below: plain index arithmetic would land on a question
+     this path never asked.
+
+     There is ONE door into all of this. An earlier version had the homepage
+     band set a window flag and jump the form; a visitor who then pressed
+     "Tell Us About Your Situation" stayed on the short question, because that
+     button only scrolls. The flag is gone. Whether these screens appear depends
+     only on what was answered.
+
+     Nothing here prices anything. The figure comes from window.SATC_PRICING,
+     which is generated from the fee schedule, beside "Price confirmed upon
+     review". The engine that chooses a tier reads the preparer interview. */
 
   function simpleFilerLooksLikely() {
     const a = state.answers;
     /* Keep existing answers. Other requested work or known return complexity
-       needs the full intake, even when the two new answers say No/No. Do not
-       silently erase a business or rental lead to make the shortcut fit.
-       Multiple states alone do not change the package's federal-schedule gate;
-       prior 'none'/'unsure' choices can be clarified by the new factual answers. */
+       needs the full intake, even when the two answers say No/No. */
     const otherWork = (a.services || []).some(v => v !== 'individual_tax');
     const priorComplexity = (a.individual_complexity || []).some(v =>
       !['w2', 'multistate', 'none', 'unsure'].includes(v));
@@ -493,47 +473,76 @@
            !otherWork && !priorComplexity;
   }
 
+  /* Which screen, if any, follows the question the visitor just answered.
+     Asked of the step being left, so a stale answer to a LATER question can
+     never skip an earlier one. */
+  function simpleFilerScreen(step) {
+    const a = state.answers;
+    if (step.id === 'sf_other_income' && a.sf_other_income === 'unsure') return 'unsure';
+    if (step.id === 'sf_schedules') {
+      if (a.sf_schedules === 'unsure') return 'unsure';
+      if (simpleFilerLooksLikely()) return 'likely';
+    }
+    return null;
+  }
+
+  /* Keyed to the answers, not to a yes/no flag: change an answer after seeing a
+     screen and you see the right screen again; leave them alone and Back then
+     Continue does not show it twice. */
+  const sfKey = () => (state.answers.sf_other_income || '') + '|' + (state.answers.sf_schedules || '');
+
+  function money(n) {
+    return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+
+  function goContact(from) {
+    state.seenKey = sfKey();
+    state.fromScreen = from;           /* so Back returns here, not to `notes` */
+    state.currentId = 'contact';
+    save(); render();
+  }
+
+  function goFullForm() {
+    state.seenKey = sfKey();
+    state.fromScreen = null;           /* ordinary Back from here */
+    state.currentId = 'individual_complexity';
+    save(); render();
+  }
+
   function renderLikelyFit() {
     const P = window.SATC_PRICING;
     const pkg = P && P.packages && P.packages[0];
-    const price = pkg
-      ? '$' + Number(pkg.price).toLocaleString('en-US', { maximumFractionDigits: 0 })
-      : '';
     const name = pkg ? pkg.name : 'this package';
 
     mount.innerHTML =
       '<div class="wiz" data-likely-fit="1">' +
         '<p class="wiz-eyebrow">What this looks like</p>' +
-        '<h3 class="wiz-q">' + name + (price ? ', ' + price : '') + '.</h3>' +
-        '<p class="wiz-help">Price confirmed upon review</p>' +
+        '<h3 class="wiz-q">' + name + (pkg ? ', ' + money(pkg.price) : '') + '.</h3>' +
+        '<p class="wiz-help">Price confirmed upon review.</p>' +
         (P && P.includedInEvery ? '<p class="wiz-help">' + P.includedInEvery + '</p>' : '') +
         '<div class="wiz-nav">' +
           '<button type="button" class="btn" id="lfGo">Send this and your details</button>' +
           '<button type="button" class="btn ghost" id="lfFull">Answer a few more questions</button>' +
         '</div>' +
       '</div>';
+    document.getElementById('lfGo').onclick = () => goContact('likely');
+    document.getElementById('lfFull').onclick = goFullForm;
+  }
 
-    /* Continue to the contact step -- the SAME contact step the full intake
-       uses -- so nothing is collected twice and nothing is sent before an
-       explicit press of Send there. */
-    const go = document.getElementById('lfGo');
-    if (go) go.onclick = function () {
-      state.likelyFitSeen = true;
-      state.fromLikelyFit = true;    /* so Back returns here, not to `notes` */
-      state.currentId = 'contact';
-      save(); render();
-    };
-
-    /* Or fall through into the full intake with both answers kept. This is the
-       "carry forward rather than restart" half: same state.answers, same
-       engine, the two route answers simply persist. */
-    const more = document.getElementById('lfFull');
-    if (more) more.onclick = function () {
-      state.likelyFitSeen = true;
-      state.fromLikelyFit = false;   /* full route from here: ordinary Back */
-      state.currentId = 'services';
-      save(); render();
-    };
+  function renderNotSure() {
+    mount.innerHTML =
+      '<div class="wiz" data-not-sure="1">' +
+        '<p class="wiz-eyebrow">That is fine</p>' +
+        '<h3 class="wiz-q">How would you like to go from here?</h3>' +
+        '<p class="wiz-help">You can fill out the full form, or just leave your details ' +
+          'and we will reach out to you.</p>' +
+        '<div class="wiz-nav">' +
+          '<button type="button" class="btn" id="nsFull">Fill out the full form</button>' +
+          '<button type="button" class="btn ghost" id="nsReach">Just have us reach out</button>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('nsFull').onclick = goFullForm;
+    document.getElementById('nsReach').onclick = () => goContact('unsure');
   }
 
   function advance(step) {
@@ -541,11 +550,10 @@
     const problem = validate(step);
     if (problem) { status(problem, true); return; }
 
-    /* PROPOSED: the one interception. After the second short-path question,
-       show what it looks like before asking for a name. */
-    if (step.id === 'sf_schedules' && simpleFilerLooksLikely() && !state.likelyFitSeen) {
+    const screen = simpleFilerScreen(step);
+    if (screen && state.seenKey !== sfKey()) {
       save();
-      renderLikelyFit();
+      if (screen === 'likely') renderLikelyFit(); else renderNotSure();
       return;
     }
 
