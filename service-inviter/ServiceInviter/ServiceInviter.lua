@@ -1,4 +1,4 @@
--- Service Inviter v3.9.30
+-- Service Inviter v3.9.31
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1858,10 +1858,20 @@ local function OnSystem(text)
         end
         return
     end
-    local welcome = WelcomeText(short)
+    -- a whispered welcome never carries the regulars line: that goes to the group, as a raid
+    -- warning when you may (the owner, 21 Nov 2026: "i mean it whispered to them it was their 4th
+    -- time"). This is the welcome sent on joining, when the game never said the invite went out.
+    local whispered = Jobs.RouteOf("welcome") == "whisper"
+    local welcome = WelcomeText(short, nil, whispered)
     if not welcome then D(short .. " joined; nothing on sale to welcome them with") return end
     D(short .. " joined, sending welcome to " .. channel)
     Jobs.Route("welcome", welcome, short, channel)
+    if whispered and loyal then
+        local ch = channel
+        if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
+        Jobs.Route("loyal", loyal, short, ch)
+        Jobs.LoyalNote(short, ch)
+    end
 end
 
 -- Where the regulars line went, and why not a raid warning when it wasn't one (the owner, 21 Nov

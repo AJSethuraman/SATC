@@ -650,3 +650,11 @@ situation: a party (no raid warnings), no leader or assist in a raid, or a teamm
 contact. Each time a regular joins, your chat now says which: "Kaldrok is a regular: said as a raid
 warning" / "said in party chat: a party has no raid warning" / "said in raid chat: a raid warning
 needs raid leader or assist" / "left to Bone Charms, the point of contact".
+
+## 3.9.31: a whisper never says their visit count (21 Nov 2026)
+
+The owner: *"i mean it whispered to them it was their 4th time"*. When the game never confirms an
+invite, the welcome waits for them to join; that welcome was built with the regulars line inside
+and whispered. A whispered welcome now leaves it out, and the regulars line goes to the group on its
+own (a raid warning when you may), with the note from 3.9.30. A `{visits}` you put in the welcome
+text yourself still says it, by design.

@@ -32,3 +32,20 @@ def test_in_a_raid_without_assist_it_says_so():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok has joined the raid group.")
     assert any(ch == "RAID" and "4th time" in m for ch, _, m in g.sent())
     assert any("needs raid leader or assist" in l for l in g.plain())
+
+
+def test_a_whispered_welcome_never_says_their_visit_count_even_when_sent_on_joining():
+    """The owner, 21 Nov 2026: "i mean it whispered to them it was their 4th time". With no word
+    from the game that the invite went out, the welcome waits for them to join; it was built with
+    the regulars line inside and whispered."""
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 50 }",
+              extra="NO_INVITE_ECHO = true function IsInRaid() return true end function IsInGroup() return true end "
+                    "function UnitIsGroupLeader() return true end")
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.route = { welcome = "whisper" } ' + BOOK)
+    whisper(g, "Kaldrok", "wtb summon to TB")
+    assert not any(ch == "WHISPER" for ch, _, _ in g.sent())                 # held: no confirmation yet
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok has joined the raid group.")
+    whispers = [m for ch, _, m in g.sent() if ch == "WHISPER"]
+    assert whispers and "50 silver" in whispers[0]
+    assert not any("time with us" in m for m in whispers)
+    assert ("RAID_WARNING", None, "Welcome back {rt3}Kaldrok{rt3}, 4th time with us!") in g.sent()
