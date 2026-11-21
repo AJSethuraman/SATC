@@ -306,7 +306,7 @@ def test_a_template_with_no_client_document_is_refused_not_embedded():
         try:
             with _pytest.raises(RuntimeError) as exc:
                 procedures_html.template_body("Broken.html")
-            assert "neither" in str(exc.value)
+            assert "none of" in str(exc.value)
             with _pytest.raises(RuntimeError) as missing:
                 procedures_html.template_body("NotThere.html")
             assert "not in" in str(missing.value)

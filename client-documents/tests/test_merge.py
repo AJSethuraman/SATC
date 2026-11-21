@@ -22,7 +22,7 @@ TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
 OPENING_PACKAGE = {
     "tax letter": "SATC Engagement Letter - Tax Preparation.html",
     "fee estimate": "SATC Fee Estimate.html",
-    "onboarding letter": "SATC Onboarding Letter.html",
+    "onboarding letter": "SATC Onboarding Email.html",
 }
 
 
