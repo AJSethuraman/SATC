@@ -329,3 +329,17 @@ def test_ad_off_says_why_on_the_button():
     g2 = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff")}, "summons = { price = 35 }")
     g2.run('ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()')
     assert g2.eval("ServiceInviterJobs.adBtn:GetText()") == "Ad off: no lock"       # no warlock in the group
+
+
+def test_nothing_to_sell_names_the_warlock_and_why():
+    """The owner, 21 Nov 2026: "wait this is why but we can sell we have a lock like what's up"."""
+    me = ("Me", "SHAMAN", 60, "Thunder Bluff")
+    g = world({"player": me, "party1": ("Yeet Lock", "WARLOCK", 60, None)}, "summons = { price = 35 }")
+    st = g.eval("{ ServiceInviter_Test.AdState() }")
+    assert st[1] == "off" and "Yeet Lock: the game won't say where they are" in st[2]
+    g = world({"player": me, "party1": ("Yeet Lock", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.providers = { WARLOCK = "Grimtotem" }')
+    st = g.eval("{ ServiceInviter_Test.AdState() }")
+    assert st[1] == "off" and 'Yeet Lock: not in "Only these sell"' in st[2]
+    g = world({"player": me}, "summons = { price = 35 }")
+    assert "no warlock in your group" in g.eval("{ ServiceInviter_Test.AdState() }")[2]

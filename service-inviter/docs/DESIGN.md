@@ -671,3 +671,11 @@ The owner: *"for some reason ad off is just stuck off?"*. The ad is off for one 
 the button never said which. It now reads "Ad off: no channel" (Trade only exists in the cities,
 or every channel is switched off on Advertise), "Ad off: no lock" (nobody in the group can summon
 where you sell), "Ad off: AFK" or "Ad off: too long"; hovering gives the full reason.
+
+## 3.9.34: "nothing to sell" names the warlock and why (21 Nov 2026)
+
+The owner, of "no ad: nothing to sell: no one in the group can do what's ticked" with Yeet Lock in
+the group: *"wait this is why but we can sell we have a lock like what's up"*. The reason now goes
+warlock by warlock: the game won't say where they are; on your list as a customer; not in "Only
+these sell"; too low; or you're set as "Friend summons". It shows in the Advertise preview, the ad
+button's tooltip, and when you press it.

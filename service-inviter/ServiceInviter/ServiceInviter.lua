@@ -1,4 +1,4 @@
--- Service Inviter v3.9.33
+-- Service Inviter v3.9.34
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2212,7 +2212,10 @@ end
 -- "ready", key, id, name, text  |  "wait", seconds  |  "off", why
 local function AdState()
     local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
-    if not text then return "off", why end
+    if not text then
+        if tostring(why):find("nothing to sell") then why = "nothing to sell: " .. Jobs.WhyNoSale() end
+        return "off", why
+    end
     if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
     -- try it in guild: every press posts there, nothing else (the owner, 15 Nov 2026: "ok prove
     -- this works by letting me post it in guild")
@@ -2237,6 +2240,29 @@ local function AdState()
     end
     if not any then return "off", "you're not in any channel you listen to (or they're all switched off)" end
     return "wait", soonest
+end
+-- Why no summons are on sale, warlock by warlock (the owner, 21 Nov 2026: "wait this is why but we
+-- can sell we have a lock like what's up")
+function Jobs.WhyNoSale()
+    local st = Core.Setting(ServiceInviterDB, "summons")
+    if not st.on then return "summons are switched off (Warlock tab)" end
+    if not st.invite then return "summons aren't taking invites (Warlock tab)" end
+    local out = {}
+    for _, m in ipairs(Jobs.TestGroup(GroupSnapshot())) do
+        if m.class == "WARLOCK" then
+            local who = m.me and "you" or m.name
+            local why
+            if m.me and m.notSummoner then why = "set as \"Friend summons\" (Warlock tab)"
+            elseif m.customer then why = "on your list as a customer (press x on their row)"
+            elseif m.notProvider then why = "not in \"Only these sell\" (Warlock tab)"
+            elseif m.level and m.level < 20 then why = "level " .. m.level .. ", too low to summon"
+            elseif not m.zone then why = "the game won't say where they are" .. (m.me and "" or " (their copy of Service Inviter would tell yours)")
+            else why = "in " .. m.zone .. ", so it should sell" end
+            out[#out + 1] = who .. ": " .. why
+        end
+    end
+    if #out == 0 then return "no warlock in your group" end
+    return table.concat(out, "; ")
 end
 local function AdLabel()
     local state, a = AdState()
