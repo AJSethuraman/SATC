@@ -1,4 +1,4 @@
--- Service Inviter v3.9.32
+-- Service Inviter v3.9.33
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2242,6 +2242,13 @@ local function AdLabel()
     local state, a = AdState()
     if state == "ready" then return "Post in " .. Jobs.ShortChannel(a), true end
     if state == "wait" then return ("Next ad %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
+    -- off says why, short enough for the button (the owner, 21 Nov 2026: "for some reason ad off is
+    -- just stuck off?"); pressing it or hovering says it in full
+    local why = tostring(a or ""):lower()
+    if why:find("afk") then return "Ad off: AFK", false end
+    if why:find("channel") then return "Ad off: no channel", false end
+    if why:find("nothing to sell") then return "Ad off: no lock", false end
+    if why:find("too long") then return "Ad off: too long", false end
     return "Ad off", false
 end
 local function PostAd()
@@ -5239,6 +5246,8 @@ local function BuildJobsUI()
     adBtn:HookScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM") GameTooltip:SetText("Ad queue")
+        local st, why = AdState()
+        if st == "off" then GameTooltip:AddLine("Off: " .. tostring(why), 1, 0.6, 0.3, true) end
         for l in Jobs.AdQueueText():gmatch("[^\n]+") do GameTooltip:AddLine(l, 1, 1, 1) end
         GameTooltip:Show()
     end)

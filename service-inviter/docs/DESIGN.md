@@ -664,3 +664,10 @@ text yourself still says it, by design.
 The owner: *"it keeps removing the space in the whisper to name for the lock"*. Saving the
 Warlock tab's "Whisper to" box stripped every space ("Yeet Lock" became "YeetLock"); it now trims
 the ends only. It was the only name box doing that.
+
+## 3.9.33: "Ad off" says why (21 Nov 2026)
+
+The owner: *"for some reason ad off is just stuck off?"*. The ad is off for one of three reasons and
+the button never said which. It now reads "Ad off: no channel" (Trade only exists in the cities,
+or every channel is switched off on Advertise), "Ad off: no lock" (nobody in the group can summon
+where you sell), "Ad off: AFK" or "Ad off: too long"; hovering gives the full reason.

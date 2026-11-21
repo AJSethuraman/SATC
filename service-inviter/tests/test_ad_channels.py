@@ -319,3 +319,13 @@ def test_the_ui_button_posts_on_its_own_even_with_an_si_ad_macro():
     m = press(g)
     assert m.startswith("/1 ") and "|| whisper inv" in m
     assert g.eval('ServiceInviterAdButton:GetAttribute("macro")') is None
+
+
+def test_ad_off_says_why_on_the_button():
+    """The owner, 21 Nov 2026: "for some reason ad off is just stuck off?"."""
+    g = world(LOCK, "summons = { price = 35 }", extra='function GetChannelList() return 2, "Trade - City", true end')
+    g.run('ServiceInviterDB.role = "lock" ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()')
+    assert g.eval("ServiceInviterJobs.adBtn:GetText()") == "Ad off: no channel"     # Trade switched off by the game
+    g2 = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff")}, "summons = { price = 35 }")
+    g2.run('ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()')
+    assert g2.eval("ServiceInviterJobs.adBtn:GetText()") == "Ad off: no lock"       # no warlock in the group
