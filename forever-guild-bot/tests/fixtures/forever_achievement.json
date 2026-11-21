@@ -1,0 +1,32 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/achievement/61502?namespace=static-1.60.1_70399-forever-us"
+  }
+ },
+ "id": 61502,
+ "category": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/achievement-category/15577?namespace=static-1.60.1_70399-forever-us"
+  },
+  "name": "Druid",
+  "id": 15577
+ },
+ "name": "Novice Druid",
+ "description": "Reach level 25 for the first time on a Druid.",
+ "points": 0,
+ "is_account_wide": true,
+ "criteria": {
+  "id": 219282,
+  "description": "Level 25 Druid",
+  "amount": 0
+ },
+ "reward_description": "Earn 1 Legacy Point.",
+ "media": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/media/achievement/61502?namespace=static-1.60.1_70399-forever-us"
+  },
+  "id": 61502
+ },
+ "display_order": 1
+}

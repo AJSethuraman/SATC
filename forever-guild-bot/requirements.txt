@@ -1,3 +1,4 @@
-discord.py>=2.4
+discord.py>=2.7   # pop-ups with dropdowns (discord.ui.Label) need 2.6+; 2.7.1 is what runs on the Forge
 httpx>=0.27
 python-dotenv>=1.0
+tzdata>=2024.1

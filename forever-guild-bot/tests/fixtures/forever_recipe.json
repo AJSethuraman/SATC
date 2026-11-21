@@ -1,0 +1,57 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/recipe/1652?namespace=static-1.60.1_70399-forever-us"
+  }
+ },
+ "id": 1652,
+ "name": "Copper Shortsword",
+ "media": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/media/recipe/1652?namespace=static-1.60.1_70399-forever-us"
+  },
+  "id": 1652
+ },
+ "crafted_item": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/item/2847?namespace=static-1.60.1_70399-forever-us"
+  },
+  "name": "Copper Shortsword",
+  "id": 2847
+ },
+ "reagents": [
+  {
+   "reagent": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/2840?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Copper Bar",
+    "id": 2840
+   },
+   "quantity": 6
+  },
+  {
+   "reagent": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/2880?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Weak Flux",
+    "id": 2880
+   },
+   "quantity": 1
+  },
+  {
+   "reagent": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/2589?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Linen Cloth",
+    "id": 2589
+   },
+   "quantity": 2
+  }
+ ],
+ "crafted_quantity": {
+  "value": 1.0
+ }
+}
