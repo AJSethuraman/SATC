@@ -233,7 +233,7 @@
         '<div class="consent"><label class="check">' +
           '<input type="checkbox" name="consent"' + (c.consent ? ' checked' : '') + ' />' +
           '<span>I understand that sending this does not create ' +
-          'a client engagement. SATC is engaged only when we both sign an engagement letter.</span>' +
+          'a client engagement. SATC is engaged only upon written agreement.</span>' +
         '</label></div>';
     }
 
