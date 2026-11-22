@@ -16,18 +16,31 @@ local function Stub()
       Hide = function(self) local was = self._shown self._shown = false if was and self._scripts.OnHide then self._scripts.OnHide(self) end end,
       IsShown = function(self) return self._shown end,
       SetText = function(self, s) self._text = s end,
+      SetTexture = function(self, t) rawset(self, "_tex", t) end,
+      SetAlpha = function(self, a) rawset(self, "_alpha", a) end,
+      SetSize = function(self, w, h) rawset(self, "_w", w) rawset(self, "_h", h) end,
+      SetHeight = function(self, h) rawset(self, "_h", h) end,
+      SetWidth = function(self, w) rawset(self, "_w", w) end,
+      GetHeight = function(self) return rawget(self, "_h") end,
+      GetWidth = function(self) return rawget(self, "_w") end,
       GetText = function(self) return self._text end,
       SetChecked = function(self, v) self._checked = v and true or false end,
       GetChecked = function(self) return self._checked end,
       SetAttribute = function(self, k2, v) self._attr[k2] = v end,
       GetAttribute = function(self, k2) return self._attr[k2] end,
       GetFont = function() return "font", 12, "" end,
+      Disable = function(self) self._disabled = true end,
+      Enable = function(self) self._disabled = false end,
+      IsEnabled = function(self) return not self._disabled end,
+      SetFontObject = function(self, f) self._font = f end,
+      SetFontString = function(self, fs) rawset(self, "_fs", fs) end,
+      GetFontString = function(self) local fs = rawget(self, "_fs") if not fs then fs = Stub() rawset(self, "_fs", fs) end return fs end,
     }
     return m[k] or function() end
   end })
 end
 FRAMES = {}
-function CreateFrame(kind, name) local f = Stub() FRAMES[#FRAMES + 1] = f if name then _G[name] = f end return f end
+function CreateFrame(kind, name, parent, template) local f = Stub() f._template = template FRAMES[#FRAMES + 1] = f if name then _G[name] = f end return f end
 UIParent = Stub() UIParent.GetWidth = function() return 1920 end UIParent.GetHeight = function() return 1080 end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) PRINTED[#PRINTED + 1] = m end }
 PRINTED = {}
@@ -46,7 +59,13 @@ function UnitInRaid() return nil end
 function UnitIsAFK() return false end
 function UnitExists() return false end
 function InCombatLockdown() return false end
-C_PartyInfo = { InviteUnit = function(n) INVITED[#INVITED + 1] = n end }
+-- the game says so when an invite goes out (NO_INVITE_ECHO = true: it didn't)
+C_PartyInfo = { InviteUnit = function(n)
+  INVITED[#INVITED + 1] = n
+  if not NO_INVITE_ECHO and FRAMES[1] and FRAMES[1]._scripts.OnEvent then
+    FRAMES[1]._scripts.OnEvent(nil, "CHAT_MSG_SYSTEM", "You have invited " .. n .. " to join your group.")
+  end
+end }
 function hooksecurefunc(t, k, fn) if type(t) == "string" then return end local orig = t[k] t[k] = function(...) orig(...) fn(...) end end
 function SendChatMessage(m, ch, _, to) SENT[#SENT + 1] = { m = m, ch = ch, to = to } end
 function GetTargetTradeMoney() return TRADEMONEY or 0 end

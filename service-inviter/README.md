@@ -1,8 +1,11 @@
 # Service Inviter
 
 A World of Warcraft addon for the owner's play on WoW: Forever. Not practice software.
-It watches chat for people buying a summon or port, invites them, and tracks each
-customer from invite to paid (`/si` for the customer list, `/si setup` for every option).
+It works out what the group can sell from who is in it (summons to where the warlock is,
+the mage's portals, lockpicking, water, stones, buffs), invites buyers from chat, tells
+each one what they're getting, from whom, where and who to pay, writes the ad, and tracks
+each customer to paid. `/si` for the customer list, `/si setup` for the tabbed setup,
+`/si bind ad F7` to post the ad with one key. The design and its sources: `docs/DESIGN.md`.
 
 ## Install
 
@@ -13,7 +16,8 @@ uninstall` removes Service Inviter.
 
 ## Change it
 
-- The addon is `ServiceInviter/ServiceInviter.lua` (and its `.toc`).
+- The rules are `ServiceInviter/Services.lua` (pure, tested on their own); the window and
+  game events are `ServiceInviter/ServiceInviter.lua`; both are listed in the `.toc`.
 - The installer is **built**, never hand-edited: change `installer.template.bat` or the
   addon, then run `python build.py`. CI runs `build.py --check` through the tests.
 

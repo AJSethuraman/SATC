@@ -16,7 +16,7 @@ HERE = Path(__file__).parent
 ADDON = HERE / "ServiceInviter"
 TEMPLATE = HERE / "installer.template.bat"
 OUT = HERE / "Install-ServiceInviter.bat"
-FILES = ["ServiceInviter.toc", "ServiceInviter.lua"]
+FILES = ["ServiceInviter.toc", "Services.lua", "ServiceInviter.lua"]
 
 
 def build() -> bytes:

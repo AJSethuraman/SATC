@@ -42,6 +42,8 @@ def test_a_completed_trade_is_still_marked_paid(party):
     "wtb summon tb, tips",
     "WTB summon to TB for guild group",
     "buying summ to tb, tip on arrival",
+    "LF summon to TB will tip",              # LF means looking for (the owner, 13 Nov 2026)
+    "looking for summon to tb, tips",
 ])
 def test_buyers_who_mention_a_tip_or_their_guild_are_invited(game, message):
     ok, why = game.evaluate(message)
@@ -103,7 +105,7 @@ def test_summon_button_keeps_accented_letters_in_the_name(game):
 @pytest.mark.parametrize("typed, silver", [("1.5g", 150), ("1g 25s", 125), ("25", 25), ("2g", 200), ("0.25g", 25)])
 def test_price_command(game, typed, silver):
     game.eval(f'SlashCmdList.SERVICEINVITER("price {typed}")')
-    assert game.eval("ServiceInviterDB.price") == silver
+    assert game.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == silver
 
 
 def test_selftest_points_at_this_addons_command(game):
@@ -119,11 +121,21 @@ def test_the_header_does_not_claim_it_never_chats():
 def test_keyword_invites_still_skip_guild_and_tip_lines(game):
     """'guild' left the hard seller list; the short 'inv' keyword path must not start inviting 'guild inv'."""
     game.run('SetOpt = nil ServiceInviterDB.opts = { kwon = true }')
-    game.event("CHAT_MSG_CHANNEL", "guild inv", "Randy", "", "2. Trade - City", "", "", "", "", "Trade")
-    game.event("CHAT_MSG_CHANNEL", "inv pls", "Wanda", "", "2. Trade - City", "", "", "", "", "Trade")
+    game.event("CHAT_MSG_WHISPER", "guild inv", "Randy", "", "", "", "", "", "", "")
+    game.event("CHAT_MSG_WHISPER", "inv pls", "Wanda", "", "", "", "", "", "", "")
     invited = list(game.g.INVITED.values())
     assert "Randy" not in invited
     assert "Wanda" in invited   # control: the keyword path still works
+
+
+def test_inv_in_a_public_channel_never_invites(game):
+    """The owner, 15 Nov 2026: "ok no auto invite is meant to be via whispers only", of
+    "invited Necrotic Paladin keyword 'inv' [Trade (Services) - English 50]"."""
+    game.run('SetOpt = nil ServiceInviterDB.opts = { kwon = true }')
+    game.event("CHAT_MSG_CHANNEL", "inv", "Necrotic Paladin", "", "2. Trade (Services) - English 50", "", "", "", "",
+               "Trade (Services) - English 50")
+    game.event("CHAT_MSG_CHANNEL", "inv pls", "Wanda", "", "2. Trade - City", "", "", "", "", "Trade")
+    assert list(game.g.INVITED.values()) == []
 
 
 def test_the_list_keeps_the_longest_waiting_customers_on_screen(game):
@@ -143,3 +155,27 @@ def test_finished_rows_give_way_to_waiting_customers(game):
         ServiceInviter_Test.Refresh()''')
     shown = [game.eval(f"ServiceInviterJobs.rows[{i}].name:GetText()") for i in range(1, 7)]
     assert "Done" not in shown and shown[0] == "Cust1"
+
+
+def test_setup_background_is_solid_black(game):
+    """The owner, 12 Nov 2026: "i want the background to be basically completely dark so it is
+    always easy to see on the setup"."""
+    color = game.eval("ServiceInviter_Test.BuildSetup().bg")
+    assert color is not None
+    from conftest import ADDON
+    src = ADDON.read_text()
+    start = src.index("local function BuildSetupUI()")
+    block = src[start:src.index("w:Hide()", start)]
+    assert 'local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()' in block   # solid, full size
+    assert "UI-DialogBox-Background" not in block   # the lighter tiled texture is gone
+    ground = src[src.index("local INK = {"):].split('ground = "', 1)[1][:6]
+    r, g, b = (int(ground[i:i + 2], 16) for i in (0, 2, 4))
+    assert max(r, g, b) <= 0x20                      # basically completely dark (#14110d)
+
+
+def test_whisper_to_keeps_the_space_in_a_name(game):
+    """The owner, 21 Nov 2026: "it keeps removing the space in the whisper to name for the lock"."""
+    game.run('S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() S.boxes.whisperto:SetText("  Yeet Lock ") S.Save()')
+    assert game.eval("ServiceInviterDB.whisperto") == "Yeet Lock"
+    game.run("S.Load()")
+    assert game.eval("S.boxes.whisperto:GetText()") == "Yeet Lock"
