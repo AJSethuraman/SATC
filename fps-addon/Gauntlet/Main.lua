@@ -492,6 +492,15 @@ local function clip_cursor(on)
   end
 end
 
+-- A /reload or a logout while playing never reaches Main.stop, so the saved setting is put back when the addon loads and when you log out.
+local ev = CreateFrame("Frame")
+Main.events = ev
+ev:RegisterEvent("PLAYER_LOGIN")
+ev:RegisterEvent("PLAYER_LOGOUT")
+ev:SetScript("OnEvent", function(self, event)
+  if event == "PLAYER_LOGIN" or event == "PLAYER_LOGOUT" then clip_cursor(false) end
+end)
+
 function Main.start(fresh)
   ensure_window()
   clip_cursor(true)

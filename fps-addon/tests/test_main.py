@@ -911,3 +911,21 @@ def test_a_client_without_the_setting_functions_just_plays():
     lua, ns, G = start()
     assert G.stage == "play"
     ns.Main.stop()
+
+
+def test_a_reload_or_logout_while_playing_puts_the_cursor_setting_back():
+    lua, ns = boot(CVARS.replace('ClipCursor = "0"', 'ClipCursor = "1"') + "GauntletDB = { clip_prev = '0' }")     # a game that was open when the UI reloaded
+    ev = ns.Main.events
+    ev.scripts.OnEvent(ev, "PLAYER_LOGIN")
+    assert lua.eval("CVAR.ClipCursor") == "0" and lua.eval("GauntletDB.clip_prev") is None
+    ns.Main.start(False)                                              # playing again, then the player logs out
+    assert lua.eval("CVAR.ClipCursor") == "1"
+    ev.scripts.OnEvent(ev, "PLAYER_LOGOUT")
+    assert lua.eval("CVAR.ClipCursor") == "0"
+
+
+def test_a_login_with_nothing_remembered_leaves_the_setting_alone():
+    lua, ns = boot(CVARS.replace('ClipCursor = "0"', 'ClipCursor = "1"'))
+    ev = ns.Main.events
+    ev.scripts.OnEvent(ev, "PLAYER_LOGIN")
+    assert lua.eval("CVAR.ClipCursor") == "1"
