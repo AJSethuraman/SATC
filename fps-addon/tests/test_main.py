@@ -875,3 +875,39 @@ def test_at_the_edge_of_the_screen_the_view_keeps_turning_by_itself_faster_the_c
     a2 = w.player.ang
     tick(lua, 75)
     assert w.player.ang == pytest.approx(a2)
+
+
+CVARS = """
+CVAR = { ClipCursor = "0" }
+function GetCVar(n) return CVAR[n] end
+function SetCVar(n, v) CVAR[n] = v end
+"""
+
+
+def test_the_cursor_is_locked_to_the_wow_window_while_you_play_and_the_old_setting_comes_back_when_you_stop():
+    lua, ns, G = start(CVARS)
+    assert lua.eval("CVAR.ClipCursor") == "1"
+    assert lua.eval("GauntletDB.clip_prev") == "0"
+    ns.Main.stop()
+    assert lua.eval("CVAR.ClipCursor") == "0" and lua.eval("GauntletDB.clip_prev") is None
+
+
+def test_a_player_who_already_locks_the_cursor_keeps_that_setting_after_the_game():
+    lua, ns, G = start(CVARS.replace('ClipCursor = "0"', 'ClipCursor = "1"'))
+    assert lua.eval("CVAR.ClipCursor") == "1"
+    ns.Main.stop()
+    assert lua.eval("CVAR.ClipCursor") == "1"                         # it was on before: it stays on
+
+
+def test_starting_again_does_not_overwrite_the_remembered_setting_with_our_own():
+    lua, ns, G = start(CVARS)
+    ns.Main.start(True)                                               # a second start while the first value is remembered
+    assert lua.eval("GauntletDB.clip_prev") == "0"
+    ns.Main.stop()
+    assert lua.eval("CVAR.ClipCursor") == "0"
+
+
+def test_a_client_without_the_setting_functions_just_plays():
+    lua, ns, G = start()
+    assert G.stage == "play"
+    ns.Main.stop()

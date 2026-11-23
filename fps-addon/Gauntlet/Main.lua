@@ -476,8 +476,25 @@ local function ensure_window()
 end
 
 -- Open the game: where you left off, or the first level.
+-- Keep the cursor inside the WoW window while you play (the client's own "Lock Cursor to Window" setting, the ClipCursor variable), and put
+-- the setting back to what it was when the game closes. The old value is kept in the saved variables in case the game is closed by a reload.
+local function clip_cursor(on)
+  if not (GetCVar and SetCVar) then return end
+  if on then
+    if db().clip_prev == nil then
+      local ok, prev = pcall(GetCVar, "ClipCursor")
+      if ok and prev ~= nil then db().clip_prev = tostring(prev) end
+    end
+    pcall(SetCVar, "ClipCursor", "1")
+  elseif db().clip_prev ~= nil then
+    pcall(SetCVar, "ClipCursor", db().clip_prev)
+    db().clip_prev = nil
+  end
+end
+
 function Main.start(fresh)
   ensure_window()
+  clip_cursor(true)
   if G and G.w and G.stage ~= "win" and not fresh and R.frame:IsShown() then return end
   G = { stage = "play", keys = {}, walk = 0, clock = 0, fps_t = 0, last_shot = -99, hurt = 0, pick = 0, last_hits = {}, run = new_run(),
         seed = (time and time() or 1) % 100000 }
@@ -512,6 +529,7 @@ function Main.set_mouse_mode(mode)
 end
 
 function Main.stop()
+  clip_cursor(false)
   if G then mouselook(false) end
   if G and G.run then save_report() end
   if R then R.frame:Hide(); if R.catcher then R.catcher:Hide() end end
@@ -545,7 +563,7 @@ SlashCmdList.GAUNTLET = function(arg)
     if Main.probe_report then text = Gauntlet.report_text(); if not text then say("the speed test has not finished yet; wait for it, then try again"); return end else text = Main.report_text() or Gauntlet.report_text() end
     if text then Gauntlet.copy_text(text) else say("no report yet: play first with /gaunt") end
   elseif arg == "stop" then Main.stop(); if Gauntlet then Gauntlet.stop() end
-  elseif arg == "mousetest" then ns.MouseProbe.start()
+  elseif arg == "mousetest" then clip_cursor(false); ns.MouseProbe.start()
   elseif arg:match("^scale") then
     local n = tonumber(arg:match("^scale%s+([%d%.]+)"))
     Main.SCALE = n and math.max(0.6, math.min(3, n)) or nil
