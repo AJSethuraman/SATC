@@ -142,7 +142,11 @@ def test_the_draft_is_in_the_register_the_firm_actually_writes_in():
 def test_a_token_it_cannot_fill_stops_the_message(packed, approved):
     """A note that greets a client by the name of a field is worse than one
     that never went."""
+    # THE COVERING NOTE IS THE FALLBACK, for a pack with no email body. A real
+    # pack's onboarding email was merged -- and refused on any missing field --
+    # before the composer saw it, so the note's own guard is tested without one.
     _, _, record, pack = packed
+    outgoing.email_body_in(pack).unlink()
     thin = dict(record)
     thin.pop("ClientFullName")
     with pytest.raises(outgoing.OutgoingError, match="ClientFullName"):
@@ -156,10 +160,28 @@ def test_only_the_documents_and_only_one_format_each(packed):
     Attaching all of it sends the firm's working files to a client."""
     _, _, _, pack = packed
     got = [p.name for p in outgoing.attachments_in(pack)]
-    assert len(got) == 4
+    # The letter, the estimate and the records release. The onboarding email
+    # is the message itself (24 Oct 2026), never one of its attachments.
+    assert len(got) == 3
+    assert not any("Onboarding" in n for n in got)
     assert not any("MANIFEST" in n or n.endswith(".css") or n.endswith(".js")
                    for n in got)
     assert len({n.rsplit(".", 1)[0] for n in got}) == len(got), "one per document"
+
+
+def test_the_onboarding_email_is_the_message(packed, approved):
+    """The firm, 24 Oct 2026: the onboarding letter "is actually supposed to be
+    sent as an email not an attachment"."""
+    _, _, record, pack = packed
+    message = outgoing.compose(record, pack, registry=approved)
+    assert message.html and "What to send us" in message.html
+    assert "What to send us" in message.body             # the plain-text version
+    assert message.subject.endswith("engagement letter")
+    assert "<div class=\"subject\">" not in message.html
+    assert outgoing.email_body_in(pack) not in message.attachments
+    raw = outgoing.as_eml(message)
+    assert b"multipart/mixed" in raw and b"multipart/alternative" in raw
+    assert b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b"")
 
 
 def test_the_pdf_wins_where_there_is_one(tmp_path):

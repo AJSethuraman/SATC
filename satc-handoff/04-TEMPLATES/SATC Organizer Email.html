@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — organizer email (template)</title>
+</head>
+<body>
+
+<div class="email" style="font-family:Arial,sans-serif;font-size:12pt;color:#242C36">
+
+<div class="subject">Your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax organizer</div>
+
+<p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+<p><span data-encl="attachment:organizer">Your organizer for the <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax year is attached.</span> It is prefilled with what we carried forward from last year, so much of it is confirming rather than gathering.</p>
+
+<p><b>Please return the completed organizer and your documents by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>.</b> Material arriving after that date may require an extension, which gives more time to file but not more time to pay.</p>
+
+<p><b>What to send</b></p>
+<ul>
+  <li class="mark"><span class="cond">[[EACH Requested]]</span></li>
+  <li><b><span class="f">&lt;&lt;Item.Category&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+</ul>
+<p>Send what you have as you get it; we would rather start with most of it than wait for all of it. Anything you are unsure about, include it and we will tell you whether it matters.</p>
+
+<p><b>What to tell us about</b></p>
+<p>Some items are easy to overlook and carry separate filings. Answer these even if the answer is no:</p>
+<ul>
+  <li>Any <b>digital asset</b> activity — sales, exchanges, income received in kind.</li>
+  <li>Any <b>foreign</b> account, asset, trust, gift, or inheritance.</li>
+  <li>A new <b>business interest</b>, rental property, or K-1 you have not sent us before.</li>
+  <li>A change in <b>marital status, dependents, or state of residence</b>.</li>
+  <li>Letters or notices from any taxing authority, whether or not you have replied.</li>
+</ul>
+
+<p><b>How to send it</b></p>
+<p>Use the secure upload link we email you. Anything sent another way is sent at your own risk.</p>
+<span class="cond">[[IF FeeChange]]</span>
+<p>One note on fees: <span class="f">&lt;&lt;FeeChangeNote&gt;&gt;</span> <span data-encl="none">Your engagement letter and estimate for this year will follow separately.</span></p>
+<span class="cond end">[[END IF]]</span>
+
+<p>We look forward to working with you again this year.</p>
+
+<p><span class="f">&lt;&lt;PreparerName&gt;&gt;</span><br/><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span>, <span class="f">&lt;&lt;FirmName&gt;&gt;</span></p>
+
+</div>
+
+<div class="ref">
+  <h3>What this is</h3>
+  <p>The email a returning client gets in January with their organizer. It was a PDF cover letter until 24 October 2026, when the firm said it "is actually supposed to be sent as an email not an attachment". The words are the letter's, with what the change forces: no letterhead, address block, date or footer, and "is enclosed" became "is attached". The organizer itself is printed from Drake; this software does not have it, so the preparer attaches it before sending. Fields are in <code>FIELDS - Organizer Email.md</code>.</p>
+  <p>Arial 12pt with real lists: the format the firm set for client email in Outlook on 13 October 2026.</p>
+</div>
+
+</body>
+</html>

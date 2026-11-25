@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import dates
+import emails
 import interview as iv
 import merge
 
@@ -147,24 +148,30 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
     def both(a, b):
         return a in text and b in text
 
+    # LETTER FURNITURE IS ON LETTERS. The reference line and the date line sit
+    # in a letter's head; an email (the onboarding and organizer emails, since
+    # 24 Oct 2026) has neither -- its date is the day it is sent. So the two
+    # checks below compare the pages, and an email body is not one.
+    pages = {n: t for n, t in text.items() if not emails.is_email(rendered[n])}
+
     # ── the join key ──────────────────────────────────────────────────────
     ref = (record.get("EngagementRef") or "").strip()
-    if ref and len(rendered) > 1:
-        absent = sorted(n for n, t in text.items() if ref not in t)
+    if ref and len(pages) > 1:
+        absent = sorted(n for n, t in pages.items() if ref not in t)
         out.append(Check(
             "one engagement reference",
             not absent,
-            f"{ref} on all {len(rendered)}" if not absent
+            f"{ref} on all {len(pages)}" if not absent
             else f"{ref} is missing from: {', '.join(absent)}"))
 
     # ── one date across the package ───────────────────────────────────────
     date = (record.get("LetterDate") or "").strip()
-    if date and len(rendered) > 1:
-        absent = sorted(n for n, t in text.items() if date not in t)
+    if date and len(pages) > 1:
+        absent = sorted(n for n, t in pages.items() if date not in t)
         out.append(Check(
             "one letter date",
             not absent,
-            f"{date} on all {len(rendered)}" if not absent
+            f"{date} on all {len(pages)}" if not absent
             else f"{date} is missing from: {', '.join(absent)}"))
 
     # ── the letter and the estimate state one scope ───────────────────────
