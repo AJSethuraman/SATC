@@ -1,0 +1,325 @@
+"""Working out which characters are probably one player: account items, the three checks, the board, the DM."""
+import asyncio
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+
+import pytest
+
+from guildbot import blizzard as bz
+from guildbot import legacy as L
+from guildbot.config import load
+from guildbot.db import utcnow
+from guildbot.sync import likely_alt_news, sync_guild
+from test_all import ROSTER, _fx, make_db
+from test_legacy import CFG, LegacyClient, _done, _ix
+
+
+def test_real_forever_collections_give_the_account_items():
+    assert bz.parse_collection(_fx("mounts"), "mounts") == [3111, 3130]   # edition mount + veteran mount
+    assert bz.parse_collection(_fx("mounts_empty"), "mounts") == []        # Blizzard leaves the list out when empty
+    assert bz.parse_collection(_fx("toys"), "toys") == [1761]
+    assert bz.account_items(_fx("mounts"), _fx("toys")) == "mount:3111,mount:3130,toy:1761"
+    assert bz.account_items(_fx("mounts_empty"), {"_links": {}}) == ""
+    with pytest.raises(bz.BlizzardError):
+        bz.parse_collection({"something": "else"}, "mounts")
+    with pytest.raises(bz.BlizzardError):
+        bz.parse_collection({"_links": {}, "mounts": {"oops": 1}}, "mounts")
+
+
+def _c(slug, cid, name, cat, at):
+    return {"slug": slug, "challenge_id": cid, "name": name, "category": cat, "completed_at": at}
+
+
+T1, T2, T3 = "2026-11-10T17:34:00+00:00", "2026-11-11T01:21:00+00:00", "2026-11-11T20:00:00+00:00"
+
+
+def test_likely_alts_need_a_solo_point_the_same_items_and_nothing_against_it():
+    rows = [
+        _c("a", 1, "Novice Druid", "Classes", T1), _c("b", 1, "Novice Druid", "Classes", T1),          # linked
+        _c("c", 9, "Conqueror of the Lair", "Raids", T2), _c("d", 9, "Conqueror of the Lair", "Raids", T2),  # a raid group
+        _c("e", 2, "Novice Paladin", "Classes", T2), _c("f", 2, "Novice Paladin", "Classes", T2),      # items differ
+        _c("g", 3, "Novice Mage", "Classes", T1), _c("h", 3, "Novice Mage", "Classes", T1),
+        _c("g", 9, "Conqueror of the Lair", "Raids", T2), _c("h", 9, "Conqueror of the Lair", "Raids", T3),  # contradiction
+        _c("i", 4, "Novice Rogue", "Classes", T1), _c("j", 4, "Novice Rogue", "Classes", T1),          # two claimers
+        _c("k", 5, "Journeyman Tailor", "Tradeskills", T3), _c("l", 5, "Journeyman Tailor", "Tradeskills", T3),  # k unknown
+    ]
+    items = {s: "mount:3111,toy:1761" for s in "abcdghijl"}
+    items.update(e="", f="mount:3111,toy:1761", k=None)
+    got = L.likely_alts(rows, items, {"i": 1, "j": 2})
+    assert got == [{"slugs": ["a", "b"], "shared": [("Novice Druid", T1)]}]
+
+
+def test_a_chain_with_any_bad_pair_is_dropped_whole():
+    rows = [_c("m", 1, "Novice Druid", "Classes", T1), _c("n", 1, "Novice Druid", "Classes", T1),
+            _c("n", 2, "Novice Mage", "Classes", T2), _c("o", 2, "Novice Mage", "Classes", T2),
+            _c("m", 7, "Journeyman Tailor", "Tradeskills", T1), _c("o", 7, "Journeyman Tailor", "Tradeskills", T3)]
+    items = dict.fromkeys("mno", "")
+    assert L.likely_alts(rows, items, {}) == []                  # m and o contradict, so no guess about any of them
+    assert L.likely_alts(rows[:4], items, {})[0]["slugs"] == ["m", "n", "o"]
+
+
+def test_players_follow_claims_first_then_the_guess():
+    groups = [{"slugs": ["a", "b"]}, {"slugs": ["d", "e"]}, {"slugs": ["x", "y"]}]
+    got = L.players({1: ["a"], 2: ["x"], 3: ["y"]}, groups, {"a", "b", "c", "d", "e", "x", "y"})
+    assert got == [{"owner": 1, "slugs": ["a", "b"], "guessed": ["b"]},
+                   {"owner": 2, "slugs": ["x"], "guessed": []},
+                   {"owner": 3, "slugs": ["y"], "guessed": []},           # claimed by two members: claims win
+                   {"owner": None, "slugs": ["d", "e"], "guessed": ["d", "e"]},
+                   {"owner": None, "slugs": ["c"], "guessed": []}]
+
+
+class AltClient(LegacyClient):
+    def __init__(self, roster, ach=None, items=None):
+        super().__init__(roster, ach)
+        self.items = items or {}
+
+    async def collections(self, slug):
+        mounts = {"_links": {}}
+        if self.items.get(slug):
+            mounts["mounts"] = [{"mount": {"id": i, "name": "?"}} for i in self.items[slug]]
+        return {"mounts": mounts, "toys": {"_links": {}}}
+
+
+def _setup(tmp_path):
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(61502, "Novice Druid", "Classes", "Druid", "Reach level 25 for the first time on a Druid.", 1),
+                               (684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    when = datetime(2026, 11, 10, 17, 34, tzinfo=timezone.utc)
+    druid = _done(61502, "Novice Druid", when)
+    client = AltClient(ROSTER, {"anduin-wrynn": [druid], "judy-judgement": [druid]},
+                       {"anduin-wrynn": [3111], "judy-judgement": [3111]})
+    asyncio.run(sync_guild(db, client, "g"))
+    return db, client
+
+
+def test_sync_stores_account_items_and_finds_the_pair(tmp_path):
+    db, client = _setup(tmp_path)
+    assert db.account_items() == {"anduin-wrynn": "mount:3111", "judy-judgement": "mount:3111"}
+    news = likely_alt_news(db)
+    assert [(g["slugs"], pairs) for g, pairs in news] == [(["anduin-wrynn", "judy-judgement"], [("anduin-wrynn", "judy-judgement")])]
+    client.items["judy-judgement"] = [3111, 3130]                     # different account items: not one player
+    asyncio.run(sync_guild(db, client, "g"))
+    assert likely_alt_news(db) == []
+
+
+def test_the_server_owner_is_told_once_and_a_failed_dm_is_retried(tmp_path):
+    from guildbot.bot import GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    sent, up = [], [False]
+
+    async def dm(uid, text, view=None):
+        if up[0]:
+            sent.append((uid, text))
+        return up[0]
+    bot.dm_user = dm
+    bot._server = lambda: SimpleNamespace(owner_id=99)
+    asyncio.run(bot.announce_likely_alts())                           # DMs closed: nothing marked as told
+    assert sent == [] and db.likely_alts_seen() == set()
+    up[0] = True
+    asyncio.run(bot.announce_likely_alts())
+    asyncio.run(bot.announce_likely_alts())                           # never twice
+    assert len(sent) == 1 and sent[0][0] == 99
+    assert "**Anduin Wrynn** and **Judy Judgement** look like the same player" in sent[0][1]
+    assert "**Novice Druid**" in sent[0][1] and "a `/link` claim always wins" in sent[0][1]
+
+
+def test_a_pair_one_member_already_claimed_is_not_news(tmp_path):
+    db, _ = _setup(tmp_path)
+    db.claim(5, ["anduin-wrynn", "judy-judgement"])
+    assert likely_alt_news(db) == []
+
+
+def test_the_board_covers_unclaimed_characters_and_marks_the_guess(tmp_path):
+    from guildbot.bot import GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, sent = _ix(1, officer=True)
+    board = bot.tree.get_command("legacy-board").callback
+    asyncio.run(board(ix))
+    e = sent[-1][1]
+    assert sent[-1][2] is True
+    assert e.description.splitlines() == ["Anduin Wrynn + Judy Judgement *(probably one player)*: 1 of 2"]
+    assert e.fields[0].value == "1 of 1 still need it"
+    db.claim(7, ["judy-judgement"])
+    asyncio.run(board(ix))
+    assert sent[-1][1].description.splitlines() == ["<@7> (+ probably Anduin Wrynn): 1 of 2"]
+
+
+def _member(uid):
+    """A fake interaction that records what the bot says back, privately or not."""
+    said = []
+
+    async def followup(text, view=None, ephemeral=False):
+        said.append(("followup", text, view, ephemeral))
+
+    async def edit(content=None, view=None):
+        said.append(("edit", content, view, None))
+    ix = SimpleNamespace(user=SimpleNamespace(id=uid, display_name="Me"), guild=object(),
+                         permissions=SimpleNamespace(manage_events=False),
+                         response=SimpleNamespace(is_done=lambda: True, edit_message=edit),
+                         followup=SimpleNamespace(send=followup))
+    return ix, said
+
+
+def test_a_member_whose_claim_is_grouped_is_asked_privately_once_a_week(tmp_path):
+    from guildbot.bot import AltView, GuildBot
+    from guildbot.sync import alt_question
+    db, _ = _setup(tmp_path)
+    db.claim(5, ["anduin-wrynn"])
+    now = utcnow()
+    later = (datetime.now(timezone.utc) + timedelta(days=8)).isoformat(timespec="seconds")
+    assert alt_question(db, 5, now) == "judy-judgement" and alt_question(db, 6, now) is None   # only the claimer
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    asyncio.run(bot.on_app_command_completion(ix, None))          # after any command they run
+    kind, text, view, private = said[-1]
+    assert kind == "followup" and private is True and isinstance(view, AltView)
+    assert text.startswith("Is **Judy Judgement** yours too?")
+    asyncio.run(bot.on_app_command_completion(ix, None))
+    assert len(said) == 1                                         # not again the same week
+    assert alt_question(db, 5, later) == "judy-judgement"         # a week on, if never answered
+    asyncio.run(bot.answer_alt(ix, "judy-judgement", True))
+    assert said[-1][:2] == ("edit", "Linked **Judy Judgement**. Use `/main` if it should be the one that signs up.")
+    assert db.owner_of("judy-judgement") == 5 and alt_question(db, 5, later) is None
+
+
+def test_no_means_never_asked_or_grouped_again(tmp_path):
+    from guildbot.bot import GuildBot
+    from guildbot.sync import alt_question, board_players, likely_alt_news
+    db, _ = _setup(tmp_path)
+    db.claim(5, ["anduin-wrynn"])
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    asyncio.run(bot.answer_alt(ix, "judy-judgement", False))
+    assert "isn't yours" in said[-1][1] and db.owner_of("judy-judgement") is None
+    later = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(timespec="seconds")
+    assert alt_question(db, 5, later) is None and likely_alt_news(db) == []
+    assert [p["guessed"] for p in board_players(db)] == [[], []]     # shown apart on the board
+
+
+def test_linking_a_character_asks_about_its_likely_alt_straight_away(tmp_path):
+    from guildbot.bot import GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    sent = []
+
+    async def send_message(text=None, **kw):
+        sent.append(text)
+    ix.response.send_message = send_message
+    link = bot.tree.get_command("link")
+    asyncio.run(link.callback(ix, "anduin-wrynn"))
+    asyncio.run(bot.on_app_command_completion(ix, link))          # what discord.py does once /link has answered
+    assert sent == ["Linked **Anduin Wrynn**."] and said[-1][1].startswith("Is **Judy Judgement** yours too?")
+
+
+def test_claiming_from_the_signup_menu_asks_too(tmp_path):
+    from guildbot.bot import ClaimPicker, GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    ix.data = {"values": ["anduin-wrynn"]}
+
+    async def run():
+        await ClaimPicker(bot)._picked(ix)
+    asyncio.run(run())
+    assert said[0][1].startswith("Linked: **Anduin Wrynn**")
+    assert said[-1][0] == "followup" and said[-1][1].startswith("Is **Judy Judgement** yours too?")
+
+
+def test_a_raid_kill_posts_a_legacy_point_for_every_player_not_one_for_the_whole_raid(tmp_path):
+    """A boss kill completes a group Legacy point for the whole raid in the same second. Three players (three
+    claims, different account items) each get their own post: only a claim or a likely-alts group merges
+    characters into one post, never the same time alone."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    raiders = {"tanka-ironwall": (101, "Warrior", "mount:3111,toy:1761"),
+               "healia-dawnsong": (102, "Priest", ""),
+               "pewpew-farshot": (103, "Hunter", "mount:3111,mount:3130,toy:1761")}
+    for slug, (member, cls, items) in raiders.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, cls, "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+        db.set_account_items(slug, items)
+        db.replace_achievements(slug, [], utcnow())
+    db.set_meta("legacy_seeded", utcnow())
+    kill_ms = int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000
+    for slug in raiders:
+        db.replace_achievements(slug, [bz.Achievement(684, "Conqueror of the Lair", kill_ms, 1, 1, None)], utcnow())
+    found = SY.legacy_milestones(db, known_before=set(raiders))
+    assert sorted(slug for _kind, slug, _name, _cid in found) == sorted(raiders)
+    assert SY.legacy_milestones(db, known_before=set(raiders)) == []          # and never twice
+
+
+
+def test_raiders_who_log_out_at_different_times_each_get_their_line(tmp_path):
+    """Blizzard only updates a character when it logs out, so after a kill one raider's point shows this
+    sync and another's next hour. The first post must not mark the kill done for everyone: each player
+    is posted when their character shows it, once, and a player's alt showing it later is not posted again."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    chars = {"tanka-ironwall": 101, "healia-dawnsong": 102, "tankalt-ironwall": 101}   # 101 claims two
+    for slug, member in chars.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, "Warrior", "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+        db.replace_achievements(slug, [], utcnow())
+    db.set_meta("legacy_seeded", utcnow())
+    kill = bz.Achievement(684, "Conqueror of the Lair",
+                          int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000, 1, 1, None)
+    db.replace_achievements("tanka-ironwall", [kill], utcnow())                 # the tank logs out first
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, set(chars))] == ["tanka-ironwall"]
+    db.replace_achievements("healia-dawnsong", [kill], utcnow())                # the healer an hour later
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, set(chars))] == ["healia-dawnsong"]
+    db.replace_achievements("tankalt-ironwall", [kill], utcnow())               # the tank's alt shows it too
+    assert SY.legacy_milestones(db, set(chars)) == []
+
+
+def test_a_new_member_who_shares_a_raid_point_with_an_old_one_is_not_announced(tmp_path):
+    """Codex on #489: the new-member guard must hold per player. A member whose achievements load for the
+    first time in the same sync as an established raider's kill had that point before joining: old news."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    for slug, member in {"oldie-stone": 101, "newbie-fresh": 102}.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, "Warrior", "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+    db.set_meta("legacy_seeded", utcnow())
+    kill = bz.Achievement(684, "Conqueror of the Lair",
+                          int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000, 1, 1, None)
+    for slug in ("oldie-stone", "newbie-fresh"):
+        db.replace_achievements(slug, [kill], utcnow())
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, {"oldie-stone"})] == ["oldie-stone"]
+    assert SY.legacy_milestones(db, {"oldie-stone", "newbie-fresh"}) == []      # and not later either
+
+def test_saying_no_and_then_claiming_the_character_does_not_hide_the_rest_of_the_account():
+    """A member who said "not mine" about a likely alt and later claimed it owns it: the old answer no longer
+    splits the group, so the account's third character is still grouped with them."""
+    t = "2026-11-12T03:00:00+00:00"
+    done = [_c(s, 61502, "Novice Druid", "Classes", t) for s in ("main-one", "alt-two", "alt-three")]
+    items = {s: "mount:3111,toy:1761" for s in ("main-one", "alt-two", "alt-three")}
+    owners = {"main-one": 42, "alt-two": 42}
+    groups = L.likely_alts(done, items, owners, rejected={(42, "alt-two")})
+    assert [g["slugs"] for g in groups] == [["alt-three", "alt-two", "main-one"]]
+    assert L.likely_alts(done, items, {"main-one": 42}, rejected={(42, "alt-two")}) == []   # a live "no" still holds
+
+
+def test_a_claimed_character_that_left_the_guild_is_not_on_the_legacy_board(tmp_path):
+    """Codex on #489: /legacy-board is the current guild. A claim kept after its character left must not
+    put that character (or its points) on the board."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    for slug in ("stays-here", "gone-away"):
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+    db.claim(101, ["stays-here", "gone-away"])
+    db.mark_absent({"stays-here"})
+    slugs = {s for p in SY.board_players(db) for s in p["slugs"]}
+    assert "stays-here" in slugs and "gone-away" not in slugs

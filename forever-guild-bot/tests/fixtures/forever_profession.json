@@ -1,0 +1,29 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/profession/393?namespace=static-1.60.1_70399-forever-us"
+  }
+ },
+ "id": 393,
+ "name": "Skinning",
+ "description": "Higher skinning skill allows you to skin hides from higher level monsters around the world.    Once your skill is above 100, you can divide your skill by 5 to determine the highest level of monster you can skin.",
+ "type": {
+  "type": "PRIMARY",
+  "name": "Primary"
+ },
+ "media": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/media/profession/393?namespace=static-1.60.1_70399-forever-us"
+  },
+  "id": 393
+ },
+ "skill_tiers": [
+  {
+   "key": {
+    "href": "https://us.api.blizzard.com/data/wow/profession/393/skill-tier/2947?namespace=static-1.60.1_70399-forever-us"
+   },
+   "name": "Skinning",
+   "id": 2947
+  }
+ ]
+}

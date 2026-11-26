@@ -1,0 +1,390 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/profile/wow/character/testa-example/equipment?namespace=profile-forever-us"
+  }
+ },
+ "character": {
+  "key": {
+   "href": "https://us.api.blizzard.com/profile/wow/character/testa-example?namespace=profile-forever-us"
+  },
+  "name": "Testa",
+  "id": 5147748,
+  "surname": "Example",
+  "slug": "testa-example"
+ },
+ "equipped_items": [
+  {
+   "item": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/281265?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 281265
+   },
+   "slot": {
+    "type": "NECK",
+    "name": "Neck"
+   },
+   "quantity": 1,
+   "context": 11,
+   "quality": {
+    "type": "UNCOMMON",
+    "name": "Uncommon"
+   },
+   "name": "Roadwatcher's Confidence",
+   "media": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/media/item/281265?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 281265
+   },
+   "item_class": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Armor",
+    "id": 4
+   },
+   "item_subclass": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4/item-subclass/0?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Miscellaneous",
+    "id": 0
+   },
+   "inventory_type": {
+    "type": "NECK",
+    "name": "Neck"
+   },
+   "binding": {
+    "type": "ON_ACQUIRE",
+    "name": "Binds when picked up"
+   },
+   "stats": [
+    {
+     "type": {
+      "type": "SPIRIT",
+      "name": "Spirit"
+     },
+     "value": 3,
+     "is_equip_bonus": true,
+     "display": {
+      "display_string": "+3 Spirit",
+      "color": {
+       "r": 0,
+       "g": 255,
+       "b": 0,
+       "a": 1.0
+      }
+     }
+    }
+   ],
+   "sell_price": {
+    "value": 565,
+    "display_strings": {
+     "header": "Sell Price:",
+     "gold": "0",
+     "silver": "5",
+     "copper": "65"
+    }
+   },
+   "level": {
+    "value": 20,
+    "display_string": "Item Level 20"
+   },
+   "is_subclass_hidden": true
+  },
+  {
+   "item": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/281673?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 281673
+   },
+   "slot": {
+    "type": "FINGER_1",
+    "name": "Ring 1"
+   },
+   "quantity": 1,
+   "context": 11,
+   "quality": {
+    "type": "UNCOMMON",
+    "name": "Uncommon"
+   },
+   "name": "Loop of Sacrifice",
+   "media": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/media/item/281673?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 281673
+   },
+   "item_class": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Armor",
+    "id": 4
+   },
+   "item_subclass": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4/item-subclass/0?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Miscellaneous",
+    "id": 0
+   },
+   "inventory_type": {
+    "type": "FINGER",
+    "name": "Finger"
+   },
+   "binding": {
+    "type": "ON_ACQUIRE",
+    "name": "Binds when picked up"
+   },
+   "stats": [
+    {
+     "type": {
+      "type": "INTELLECT",
+      "name": "Intellect"
+     },
+     "value": 5,
+     "display": {
+      "display_string": "+5 Intellect",
+      "color": {
+       "r": 255,
+       "g": 255,
+       "b": 255,
+       "a": 1.0
+      }
+     }
+    },
+    {
+     "type": {
+      "type": "STRENGTH",
+      "name": "Strength"
+     },
+     "value": 3,
+     "display": {
+      "display_string": "+3 Strength",
+      "color": {
+       "r": 255,
+       "g": 255,
+       "b": 255,
+       "a": 1.0
+      }
+     }
+    }
+   ],
+   "sell_price": {
+    "value": 1413,
+    "display_strings": {
+     "header": "Sell Price:",
+     "gold": "0",
+     "silver": "14",
+     "copper": "13"
+    }
+   },
+   "level": {
+    "value": 28,
+    "display_string": "Item Level 28"
+   },
+   "is_subclass_hidden": true
+  },
+  {
+   "item": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/279867?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 279867
+   },
+   "slot": {
+    "type": "FINGER_2",
+    "name": "Ring 2"
+   },
+   "quantity": 1,
+   "context": 11,
+   "quality": {
+    "type": "UNCOMMON",
+    "name": "Uncommon"
+   },
+   "name": "Slain Baron's Signet",
+   "media": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/media/item/279867?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 279867
+   },
+   "item_class": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Armor",
+    "id": 4
+   },
+   "item_subclass": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/4/item-subclass/0?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Miscellaneous",
+    "id": 0
+   },
+   "inventory_type": {
+    "type": "FINGER",
+    "name": "Finger"
+   },
+   "binding": {
+    "type": "ON_ACQUIRE",
+    "name": "Binds when picked up"
+   },
+   "stats": [
+    {
+     "type": {
+      "type": "STAMINA",
+      "name": "Stamina"
+     },
+     "value": 3,
+     "display": {
+      "display_string": "+3 Stamina",
+      "color": {
+       "r": 255,
+       "g": 255,
+       "b": 255,
+       "a": 1.0
+      }
+     }
+    },
+    {
+     "type": {
+      "type": "DEFENSE_SKILL_RATING",
+      "name": "Defense"
+     },
+     "value": 1,
+     "is_equip_bonus": true,
+     "display": {
+      "display_string": "+1 Defense",
+      "color": {
+       "r": 0,
+       "g": 255,
+       "b": 0,
+       "a": 1.0
+      }
+     }
+    }
+   ],
+   "sell_price": {
+    "value": 815,
+    "display_strings": {
+     "header": "Sell Price:",
+     "gold": "0",
+     "silver": "8",
+     "copper": "15"
+    }
+   },
+   "level": {
+    "value": 23,
+    "display_string": "Item Level 23"
+   },
+   "is_subclass_hidden": true
+  },
+  {
+   "item": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item/279874?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 279874
+   },
+   "slot": {
+    "type": "MAIN_HAND",
+    "name": "Main Hand"
+   },
+   "quantity": 1,
+   "context": 11,
+   "quality": {
+    "type": "UNCOMMON",
+    "name": "Uncommon"
+   },
+   "name": "The Stitcher",
+   "media": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/media/item/279874?namespace=static-1.60.1_70399-forever-us"
+    },
+    "id": 279874
+   },
+   "item_class": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/2?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Weapon",
+    "id": 2
+   },
+   "item_subclass": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/item-class/2/item-subclass/4?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Mace",
+    "id": 4
+   },
+   "inventory_type": {
+    "type": "WEAPONMAINHAND",
+    "name": "Main Hand"
+   },
+   "binding": {
+    "type": "ON_ACQUIRE",
+    "name": "Binds when picked up"
+   },
+   "weapon": {
+    "damage": {
+     "min_value": 13,
+     "max_value": 26,
+     "display_string": "13 - 26 Damage",
+     "damage_class": {
+      "type": "PHYSICAL",
+      "name": "Physical"
+     }
+    },
+    "attack_speed": {
+     "value": 2400,
+     "display_string": "Speed 2.40"
+    },
+    "dps": {
+     "value": 8.125,
+     "display_string": "(8.1 damage per second)"
+    }
+   },
+   "stats": [
+    {
+     "type": {
+      "type": "STAMINA",
+      "name": "Stamina"
+     },
+     "value": 3,
+     "display": {
+      "display_string": "+3 Stamina",
+      "color": {
+       "r": 255,
+       "g": 255,
+       "b": 255,
+       "a": 1.0
+      }
+     }
+    }
+   ],
+   "sell_price": {
+    "value": 2366,
+    "display_strings": {
+     "header": "Sell Price:",
+     "gold": "0",
+     "silver": "23",
+     "copper": "66"
+    }
+   },
+   "level": {
+    "value": 24,
+    "display_string": "Item Level 24"
+   },
+   "durability": {
+    "value": 59,
+    "display_string": "Durability 59 / 65"
+   }
+  }
+ ]
+}
